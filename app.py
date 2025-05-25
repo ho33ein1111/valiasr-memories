@@ -4,7 +4,7 @@ from streamlit_folium import st_folium
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("📍 Khaterehaye Khiaban Valiasr - Tehran")
+st.title("📍 خاطرات خیابان ولیعصر")
 
 csv_file = "pins.csv"
 
@@ -28,8 +28,8 @@ for i, row in df.iterrows():
         icon=folium.Icon(color=color_map.get(row["user_type"], "gray"))
     ).add_to(m)
 
-st.markdown("### 🗺️ Rooye naghshe click kon ta yek khatere sabt koni:")
-map_data = st_folium(m, height=500, width=700)
+st.markdown("### 🗺️ click on map to create a memory:")
+map_data = st_folium(m, height=500, width=700, returned_objects=["last_clicked"])
 
 if map_data is not None and map_data.get("last_clicked") is not None:
     lat = map_data["last_clicked"]["lat"]
