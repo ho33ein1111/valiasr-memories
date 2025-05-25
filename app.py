@@ -25,11 +25,18 @@ color_map = {
 }
 
 for _, row in df.iterrows():
+    popup_html = f"""
+    <b>User type:</b> {row["user_type"]}<br>
+    <b>Memory:</b> {row["message"]}
+    """
+    popup = folium.Popup(popup_html, max_width=300)
+
     folium.Marker(
         location=[row["lat"], row["lon"]],
-        popup=f'{row["user_type"]}: {row["message"]}',
+        popup=popup,
         icon=folium.Icon(color=color_map.get(row["user_type"], "gray"))
     ).add_to(m)
+
 
 # Show the map and handle clicks
 st.markdown("### 🗺️ Click on the map to select a location:")
