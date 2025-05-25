@@ -93,3 +93,5 @@ if "clicked_lat" in params and "clicked_lon" in params:
             st.success("✅ Khatere sabt shod! Safhe ro reload kon ta pin-ha ro bebin.")
 else:
     st.info("⬅️ Click kon rooye naghshe baraye entekhab location.")
+
+# updated version after query_params fix
