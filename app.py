@@ -1,83 +1,56 @@
 import streamlit as st
 import pandas as pd
-import streamlit.components.v1 as components
+import folium
+from streamlit_folium import st_folium
 
 st.set_page_config(layout="wide")
-st.title("📍 Khaterehaye Khiaban Valiasr - Tehran")
+st.title("📍 خاطرات خیابان ولیعصر - تهران")
 
 csv_file = "pins.csv"
 
-# Load existing data or init empty
+# بارگذاری داده‌های موجود یا ایجاد دیتافریم جدید
 try:
     df = pd.read_csv(csv_file)
-except:
+except FileNotFoundError:
     df = pd.DataFrame(columns=["lat", "lon", "user_type", "message"])
 
-st.markdown("### 🗺️ Rooye naghshe click kon ta location entekhab beshe:")
+st.markdown("### 🗺️ روی نقشه کلیک کنید تا مکان انتخاب شود:")
 
-# Embed Google Maps with JS click
-components.html(f"""
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Google Maps Click</title>
-    <meta name="viewport" content="initial-scale=1.0">
-    <meta charset="utf-8">
-    <style>
-      #map {{
-        height: 500px;
-        width: 100%;
-      }}
-    </style>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAs4WWVHuqIR6e1AGAoOG6KdGn3hM4zook"></script>
-    <script>
-      function initMap() {{
-        const center = {{ lat: 35.7448, lng: 51.3880 }};
-        const map = new google.maps.Map(document.getElementById("map"), {{
-          zoom: 13,
-          center: center,
-        }});
+# ایجاد نقشه با Folium
+m = folium.Map(location=[35.7448, 51.3880], zoom_start=13)
 
-        map.addListener("click", (e) => {{
-          const lat = e.latLng.lat().toFixed(6);
-          const lon = e.latLng.lng().toFixed(6);
-          new google.maps.Marker({{
-            position: e.latLng,
-            map: map,
-          }});
-          const url = new URL(window.location);
-          url.searchParams.set("clicked_lat", lat);
-          url.searchParams.set("clicked_lon", lon);
-          window.location.href = url.toString();
-        }});
-      }}
-    </script>
-  </head>
-  <body onload="initMap()">
-    <div id="map"></div>
-  </body>
-</html>
-""", height=500)
+# افزودن نشانگرها از داده‌های موجود
+color_map = {
+    "rahro-piade": "green",
+    "rahro-savar": "blue",
+    "mosafer": "red"
+}
 
-# Handle URL query params after map click
-params = st.query_params
-lat = params.get("clicked_lat", [None])[0]
-lon = params.get("clicked_lon", [None])[0]
+for _, row in df.iterrows():
+    folium.Marker(
+        location=[row["lat"], row["lon"]],
+        popup=f'{row["user_type"]}: {row["message"]}',
+        icon=folium.Icon(color=color_map.get(row["user_type"], "gray"))
+    ).add_to(m)
 
-if lat and lon:
-    lat = float(lat)
-    lon = float(lon)
-    st.success(f"📌 Location entekhab shod: {lat:.4f}, {lon:.4f}")
+# نمایش نقشه و دریافت کلیک کاربر
+map_data = st_folium(m, width=700, height=500)
+
+# بررسی کلیک کاربر
+if map_data and map_data["last_clicked"]:
+    lat = map_data["last_clicked"]["lat"]
+    lon = map_data["last_clicked"]["lng"]
+    st.success(f"📌 مکان انتخاب شده: {lat:.4f}, {lon:.4f}")
 
     with st.form("memory_form"):
-        user_type = st.selectbox("Noe karbar", ["rahro-piade", "rahro-savar", "mosafer"])
-        message = st.text_area("Matn khatere", max_chars=200)
-        submitted = st.form_submit_button("📌 Sabt Khatere")
+        user_type = st.selectbox("نوع کاربر", ["rahro-piade", "rahro-savar", "mosafer"])
+        message = st.text_area("متن خاطره", max_chars=200)
+        submitted = st.form_submit_button("📌 ثبت خاطره")
 
         if submitted and message.strip():
             new_row = pd.DataFrame([[lat, lon, user_type, message]], columns=df.columns)
             df = pd.concat([df, new_row], ignore_index=True)
             df.to_csv(csv_file, index=False)
-            st.success("✅ Khatere sabt shod! Safhe ro reload kon ta pin-ha ro bebin.")
+            st.success("✅ خاطره ثبت شد! برای مشاهده، صفحه را مجدداً بارگذاری کنید.")
 else:
-    st.info("⬅️ Click kon rooye naghshe baraye entekhab location.")
+    st.info("⬅️ روی نقشه کلیک کنید تا مکان انتخاب شود.")
