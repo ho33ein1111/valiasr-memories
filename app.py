@@ -7,14 +7,14 @@ st.title("📍 Khaterehaye Khiaban Valiasr - Tehran")
 
 csv_file = "pins.csv"
 
-# Load or init data
 try:
     df = pd.read_csv(csv_file)
 except:
     df = pd.DataFrame(columns=["lat", "lon", "user_type", "message"])
 
-# Load mapbox click JS
+# Show Map
 st.markdown("### 🗺️ Rooye naghshe click kon:")
+
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -24,7 +24,7 @@ components.html(f"""
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
 <style>
   body {{ margin: 0; padding: 0; }}
-  #map {{ position: absolute; top: 0; bottom: 0; width: 100%; height: 500px; }}
+  #map {{ position: relative; width: 100%; height: 500px; }}
 </style>
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.js"></script>
 <link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet" />
@@ -54,12 +54,11 @@ map.on('click', function (e) {{
 </html>
 """, height=500)
 
-# JS bridge handler
-clicked = st.experimental_get_query_params()
-lat = st.session_state.get("clicked_lat", None)
-lon = st.session_state.get("clicked_lon", None)
+# Click capture
+lat = st.session_state.get("clicked_lat")
+lon = st.session_state.get("clicked_lon")
 
-# Inject JS listener
+# JS listener
 components.html("""
 <script>
 window.addEventListener("message", (event) => {
@@ -73,11 +72,11 @@ window.addEventListener("message", (event) => {
 </script>
 """, height=0)
 
-# Read click from URL query
-params = st.experimental_get_query_params()
+# Get query from URL
+params = st.query_params
 if "clicked_lat" in params and "clicked_lon" in params:
-    lat = float(params["clicked_lat"][0])
-    lon = float(params["clicked_lon"][0])
+    lat = float(params["clicked_lat"])
+    lon = float(params["clicked_lon"])
     st.session_state.clicked_lat = lat
     st.session_state.clicked_lon = lon
     st.success(f"📌 Location entekhab shod: {lat:.4f}, {lon:.4f}")
