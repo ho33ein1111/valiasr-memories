@@ -29,7 +29,7 @@ components.html(f"""
         width: 100%;
       }}
     </style>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWwNC6psdv3uGs-watw34_mULitgQYUxA"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAs4WWVHuqIR6e1AGAoOG6KdGn3hM4zook"></script>
     <script>
       function initMap() {{
         const center = {{ lat: 35.7448, lng: 51.3880 }};
