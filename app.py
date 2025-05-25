@@ -7,20 +7,20 @@ st.title("📍 Khaterehaye Khiaban Valiasr - Tehran")
 
 csv_file = "pins.csv"
 
-# Load or init data
+# Load existing data or init empty
 try:
     df = pd.read_csv(csv_file)
 except:
     df = pd.DataFrame(columns=["lat", "lon", "user_type", "message"])
 
-# Google Maps HTML (interactive map with JS postMessage)
-st.markdown("### 🗺️ Rooye naghshe click kon:")
+st.markdown("### 🗺️ Rooye naghshe click kon ta location entekhab beshe:")
 
+# Embed Google Maps with JS click
 components.html(f"""
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Google Maps Clickable</title>
+    <title>Google Maps Click</title>
     <meta name="viewport" content="initial-scale=1.0">
     <meta charset="utf-8">
     <style>
@@ -45,7 +45,10 @@ components.html(f"""
             position: e.latLng,
             map: map,
           }});
-          window.parent.postMessage({{ type: "map-click", lat: lat, lon: lon }}, "*");
+          const url = new URL(window.location);
+          url.searchParams.set("clicked_lat", lat);
+          url.searchParams.set("clicked_lon", lon);
+          window.location.href = url.toString();
         }});
       }}
     </script>
@@ -56,28 +59,14 @@ components.html(f"""
 </html>
 """, height=500)
 
-# JS listener to update query params
-components.html("""
-<script>
-window.addEventListener("message", (event) => {
-  if (event.data.type === "map-click") {
-    const query = new URLSearchParams(window.location.search);
-    query.set("clicked_lat", event.data.lat);
-    query.set("clicked_lon", event.data.lon);
-    window.location.search = query.toString();
-  }
-});
-</script>
-""", height=0)
-
-# Get query params
+# Handle URL query params after map click
 params = st.query_params
 lat = params.get("clicked_lat", [None])[0]
 lon = params.get("clicked_lon", [None])[0]
 
-# Show form if click exists
 if lat and lon:
-    lat, lon = float(lat), float(lon)
+    lat = float(lat)
+    lon = float(lon)
     st.success(f"📌 Location entekhab shod: {lat:.4f}, {lon:.4f}")
 
     with st.form("memory_form"):
