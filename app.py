@@ -7,78 +7,77 @@ st.title("📍 Khaterehaye Khiaban Valiasr - Tehran")
 
 csv_file = "pins.csv"
 
+# Load or init data
 try:
     df = pd.read_csv(csv_file)
 except:
     df = pd.DataFrame(columns=["lat", "lon", "user_type", "message"])
 
-# Show Map
+# Google Maps HTML (interactive map with JS postMessage)
 st.markdown("### 🗺️ Rooye naghshe click kon:")
 
 components.html(f"""
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="utf-8" />
-<title>Mapbox Clickable Map</title>
-<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-<style>
-  body {{ margin: 0; padding: 0; }}
-  #map {{ position: relative; width: 100%; height: 500px; }}
-</style>
-<script src="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet" />
-</head>
-<body>
-<div id="map"></div>
-<script>
-mapboxgl.accessToken = 'pk.eyJ1IjoiZGVtb3VzZXIiLCJhIjoiY2tzbDYxNjFsMDVrdjJubGlydzMxaDh1diJ9.3XYjWT1qZP4rp-WWRA6kCg';
-const map = new mapboxgl.Map({{
-  container: 'map',
-  style: 'mapbox://styles/mapbox/streets-v11',
-  center: [51.3880, 35.7448],
-  zoom: 13
-}});
-map.on('click', function (e) {{
-    const coords = e.lngLat;
-    const lat = coords.lat.toFixed(6);
-    const lon = coords.lng.toFixed(6);
-    window.parent.postMessage({{
-        type: 'map-click',
-        lat: lat,
-        lon: lon
-    }}, '*');
-}});
-</script>
-</body>
+  <head>
+    <title>Google Maps Clickable</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <style>
+      #map {{
+        height: 500px;
+        width: 100%;
+      }}
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD1SKh6VhTZDTBEx4V2FD6zTSqRb3nSwAw"></script>
+    <script>
+      function initMap() {{
+        const center = {{ lat: 35.7448, lng: 51.3880 }};
+        const map = new google.maps.Map(document.getElementById("map"), {{
+          zoom: 13,
+          center: center,
+        }});
+
+        map.addListener("click", (e) => {{
+          const lat = e.latLng.lat().toFixed(6);
+          const lon = e.latLng.lng().toFixed(6);
+          new google.maps.Marker({{
+            position: e.latLng,
+            map: map,
+          }});
+          window.parent.postMessage({{ type: "map-click", lat: lat, lon: lon }}, "*");
+        }});
+      }}
+    </script>
+  </head>
+  <body onload="initMap()">
+    <div id="map"></div>
+  </body>
 </html>
 """, height=500)
 
-# Click capture
-lat = st.session_state.get("clicked_lat")
-lon = st.session_state.get("clicked_lon")
-
-# JS listener
+# JS listener to update query params
 components.html("""
 <script>
 window.addEventListener("message", (event) => {
-    if (event.data.type === "map-click") {
-        const query = new URLSearchParams(window.location.search);
-        query.set("clicked_lat", event.data.lat);
-        query.set("clicked_lon", event.data.lon);
-        window.location.search = query.toString();
-    }
+  if (event.data.type === "map-click") {
+    const query = new URLSearchParams(window.location.search);
+    query.set("clicked_lat", event.data.lat);
+    query.set("clicked_lon", event.data.lon);
+    window.location.search = query.toString();
+  }
 });
 </script>
 """, height=0)
 
-# Get query from URL
+# Get query params
 params = st.query_params
-if "clicked_lat" in params and "clicked_lon" in params:
-    lat = float(params["clicked_lat"])
-    lon = float(params["clicked_lon"])
-    st.session_state.clicked_lat = lat
-    st.session_state.clicked_lon = lon
+lat = params.get("clicked_lat", [None])[0]
+lon = params.get("clicked_lon", [None])[0]
+
+# Show form if click exists
+if lat and lon:
+    lat, lon = float(lat), float(lon)
     st.success(f"📌 Location entekhab shod: {lat:.4f}, {lon:.4f}")
 
     with st.form("memory_form"):
@@ -93,5 +92,3 @@ if "clicked_lat" in params and "clicked_lon" in params:
             st.success("✅ Khatere sabt shod! Safhe ro reload kon ta pin-ha ro bebin.")
 else:
     st.info("⬅️ Click kon rooye naghshe baraye entekhab location.")
-
-# updated version after query_params fix
