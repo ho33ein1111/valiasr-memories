@@ -125,10 +125,14 @@ components.html(f"""
 data = st_javascript("""
 new Promise((resolve) => {
   window.addEventListener("message", (event) => {
+    console.log("🔁 Received postMessage:", event.data);
     resolve(event.data);
   }, { once: true });
 });
 """)
+
+st.write("📥 JS postMessage data received:", data)
+
 
 # --- Handle data received from JS ---
 if data:
