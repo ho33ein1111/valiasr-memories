@@ -5,7 +5,7 @@ import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Google Sheets setup
+# Setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GSPREAD_SA_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -18,7 +18,7 @@ st.title("📍 Valiasr Street Memories")
 
 rows = sheet.get_all_records()
 memory_data = []
-for i, row in enumerate(rows, start=2):  # row 1 is header
+for i, row in enumerate(rows, start=2):  # row 1 = header
     row["row_id"] = i
     memory_data.append(row)
 
@@ -86,7 +86,7 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${{\"{\"}}lat{{\"}\"}}, ${{\"{\"}}lon{{\"}\"}})'>Save</button>
+                <button onclick='submitMemory(${{\"{{\"}}lat{{\"}}\"}}, ${{\"{{\"}}lon{{\"}}\"}})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
@@ -124,7 +124,7 @@ components.html(f"""
 </html>
 """, height=620)
 
-# Receive data
+# Handle query params
 query = st.query_params
 st.write("🧪 Query params received:", query)
 
@@ -142,8 +142,8 @@ if "lat" in query:
 if "delete_row" in query:
     try:
         row_id = int(query["delete_row"])
-        st.write(f"🔍 Attempting to delete row {row_id}...")
+        st.write(f"🔍 Deleting row {row_id}...")
         sheet.delete_row(row_id)
         st.success(f"🗑 Row {row_id} deleted successfully.")
     except Exception as e:
-        st.error(f"❌ Error deleting memory (row {row_id}): {e}")
+        st.error(f"❌ Error deleting row {row_id}: {e}")
