@@ -1,10 +1,9 @@
 import streamlit as st
-import pandas as pd
-import streamlit.components.v1 as components
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 from streamlit_javascript import st_javascript
+import streamlit.components.v1 as components
 
 # --- Google Sheets setup ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -13,20 +12,20 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open(st.secrets["SHEET_NAME"]).sheet1
 
-# --- Page Setup ---
+# --- UI config ---
 st.set_page_config(layout="wide")
 st.title("📍 Valiasr Street Memories")
 
 # --- Load existing data ---
 rows = sheet.get_all_records()
 memory_data = []
-for i, row in enumerate(rows, start=2):  # row 1 = header
+for i, row in enumerate(rows, start=2):
     row["row_id"] = i
     memory_data.append(row)
 
 memory_json = json.dumps(memory_data)
 
-# --- Send map with JS ---
+# --- Display map with JS ---
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -70,7 +69,6 @@ components.html(f"""
                     <b>Memory:</b> ${{mem.message}}<br>
                     <button onclick='deleteMemory(${{mem.row_id}})'>🗑 Delete</button>`
         }});
-
         marker.addListener('click', () => popup.open(map, marker));
       }});
 
@@ -100,23 +98,22 @@ components.html(f"""
       }});
     }}
 
-    function submitMemory(lat, lon) {
-  const userType = document.getElementById('userType').value;
-  const message = document.getElementById('memoryText').value;
-  const payload = {
-    lat: lat,
-    lon: lon,
-    user_type: userType,
-    message: message
-  };
-  window.parent.postMessage(payload, '*');
-}
+    function submitMemory(lat, lon) {{
+      const userType = document.getElementById('userType').value;
+      const message = document.getElementById('memoryText').value;
+      const payload = {{
+        lat: lat,
+        lon: lon,
+        user_type: userType,
+        message: message
+      }};
+      window.parent.postMessage(payload, '*');
+    }}
 
-function deleteMemory(row_id) {
-  const payload = { delete_row: row_id };
-  window.parent.postMessage(payload, '*');
-}
-
+    function deleteMemory(row_id) {{
+      const payload = {{ delete_row: row_id }};
+      window.parent.postMessage(payload, '*');
+    }}
 
     window.onload = initMap;
   </script>
@@ -127,11 +124,11 @@ function deleteMemory(row_id) {
 </html>
 """, height=620)
 
-# --- Listen for postMessage events ---
+# --- Listen for postMessage data ---
 data = st_javascript("""
 new Promise((resolve) => {
   window.addEventListener("message", (event) => {
-    console.log("🔁 Received postMessage:", event.data);
+    console.log("📩 Received:", event.data);
     resolve(event.data);
   }, { once: true });
 });
@@ -139,24 +136,23 @@ new Promise((resolve) => {
 
 st.write("📥 JS postMessage data received:", data)
 
-
-# --- Handle data received from JS ---
+# --- Save or Delete handling ---
 if data:
     if "lat" in data:
         try:
-            lat = float(data["lat"])
-            lon = float(data["lon"])
-            user_type = data["user_type"]
-            message = data["message"]
-            sheet.append_row([lat, lon, user_type, message])
+            sheet.append_row([
+                float(data["lat"]),
+                float(data["lon"]),
+                data["user_type"],
+                data["message"]
+            ])
             st.success("✅ Memory saved!")
         except Exception as e:
-            st.error(f"❌ Error saving memory: {e}")
+            st.error(f"❌ Error saving: {e}")
 
     elif "delete_row" in data:
         try:
-            row_id = int(data["delete_row"])
-            sheet.delete_row(row_id)
-            st.success(f"🗑 Row {row_id} deleted.")
+            sheet.delete_row(int(data["delete_row"]))
+            st.success("🗑 Row deleted.")
         except Exception as e:
-            st.error(f"❌ Error deleting row: {e}")
+            st.error(f"❌ Error deleting: {e}")
