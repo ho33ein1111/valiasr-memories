@@ -88,7 +88,7 @@ components.html(f"""
             <label>Memory:</label>
             <textarea id='memoryText' rows='3'></textarea>
             <div style='display: flex; justify-content: space-between;'>
-              <button onclick='submitMemory(${{"{"}}lat{{"}"}}, ${{"{"}}lon{{"}"}})'>Save</button>
+              <button onclick='submitMemory(${{"{{"}}lat{{"}}"}}, ${{"{{"}}lon{{"}}"}})'>Save</button>
               <button onclick='infowindow.close()'>Cancel</button>
             </div>
           </div>`;
@@ -104,13 +104,12 @@ components.html(f"""
       const userType = document.getElementById('userType').value;
       const message = document.getElementById('memoryText').value;
       const payload = {{ lat: lat, lon: lon, user_type: userType, message: message }};
-      parent.postMessage(payload, '*');
-      infowindow.close();
+      window.parent.postMessage(payload, '*');
     }}
 
     function deleteMemory(row_id) {{
       const payload = {{ delete_row: row_id }};
-      parent.postMessage(payload, '*');
+      window.parent.postMessage(payload, '*');
     }}
 
     window.onload = initMap;
@@ -122,33 +121,32 @@ components.html(f"""
 </html>
 """, height=620)
 
-# --- Handle postMessage via JS (only if no query param) ---
-if not st.query_params:
-    st_javascript("""
-        window.addEventListener('message', (event) => {
-          const query = new URLSearchParams(event.data).toString();
-          if (query) window.location.search = '?' + query;
-        });
-    """)
+# --- Listen for postMessage events ---
+data = st_javascript("""
+new Promise((resolve) => {
+  window.addEventListener("message", (event) => {
+    resolve(event.data);
+  }, { once: true });
+});
+""")
 
-# --- Handle new memory submission ---
-query = st.query_params
-if "lat" in query:
-    try:
-        lat = float(query["lat"])
-        lon = float(query["lon"])
-        user_type = query["user_type"]
-        message = query["message"]
-        sheet.append_row([lat, lon, user_type, message])
-        st.success("✅ Memory saved!")
-    except Exception as e:
-        st.error(f"❌ Error saving memory: {e}")
+# --- Handle data received from JS ---
+if data:
+    if "lat" in data:
+        try:
+            lat = float(data["lat"])
+            lon = float(data["lon"])
+            user_type = data["user_type"]
+            message = data["message"]
+            sheet.append_row([lat, lon, user_type, message])
+            st.success("✅ Memory saved!")
+        except Exception as e:
+            st.error(f"❌ Error saving memory: {e}")
 
-# --- Handle delete request ---
-if "delete_row" in query:
-    try:
-        row_id = int(query["delete_row"])
-        sheet.delete_row(row_id)
-        st.success(f"🗑 Row {row_id} deleted.")
-    except Exception as e:
-        st.error(f"❌ Error deleting row: {e}")
+    elif "delete_row" in data:
+        try:
+            row_id = int(data["delete_row"])
+            sheet.delete_row(row_id)
+            st.success(f"🗑 Row {row_id} deleted.")
+        except Exception as e:
+            st.error(f"❌ Error deleting row: {e}")
