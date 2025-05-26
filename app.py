@@ -120,6 +120,7 @@ components.html(f"""
 
 # --- Handle query parameters ---
 query = st.query_params
+
 if "lat" in query:
     try:
         sheet.append_row([
@@ -129,6 +130,7 @@ if "lat" in query:
             query["message"]
         ])
         st.success("✅ Memory saved!")
+        st.experimental_rerun()
     except Exception as e:
         st.error(f"❌ Error saving: {e}")
 
@@ -136,5 +138,6 @@ if "delete_row" in query:
     try:
         sheet.delete_row(int(query["delete_row"]))
         st.success("🗑 Row deleted.")
+        st.experimental_rerun()
     except Exception as e:
         st.error(f"❌ Error deleting: {e}")
