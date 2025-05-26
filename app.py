@@ -4,26 +4,29 @@ import streamlit.components.v1 as components
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
+from streamlit_javascript import st_javascript
 
-# Setup
+# --- Google Sheets setup ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GSPREAD_SA_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open(st.secrets["SHEET_NAME"]).sheet1
 
-# Load data
+# --- Page Setup ---
 st.set_page_config(layout="wide")
 st.title("📍 Valiasr Street Memories")
 
+# --- Load existing data ---
 rows = sheet.get_all_records()
 memory_data = []
-for i, row in enumerate(rows, start=2):
+for i, row in enumerate(rows, start=2):  # row 1 = header
     row["row_id"] = i
     memory_data.append(row)
 
 memory_json = json.dumps(memory_data)
 
+# --- Send map with JS ---
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -85,7 +88,7 @@ components.html(f"""
             <label>Memory:</label>
             <textarea id='memoryText' rows='3'></textarea>
             <div style='display: flex; justify-content: space-between;'>
-              <button onclick='submitMemory(${{"{{"}}lat{{"}}"}}, ${{"{{"}}lon{{"}}"}})'>Save</button>
+              <button onclick='submitMemory(${{"{"}}lat{{"}"}}, ${{"{"}}lon{{"}"}})'>Save</button>
               <button onclick='infowindow.close()'>Cancel</button>
             </div>
           </div>`;
@@ -119,14 +122,16 @@ components.html(f"""
 </html>
 """, height=620)
 
-# Streamlit side: handle postMessage via component value
-payload = st.experimental_get_query_params()
+# --- Handle postMessage via JS (only if no query param) ---
+if not st.query_params:
+    st_javascript("""
+        window.addEventListener('message', (event) => {
+          const query = new URLSearchParams(event.data).toString();
+          if (query) window.location.search = '?' + query;
+        });
+    """)
 
-if not payload:
-    from streamlit_javascript import st_javascript
-    result = st_javascript("window.addEventListener('message', (event) => window.location = '?'+new URLSearchParams(event.data).toString());")
-
-# Handle memory save
+# --- Handle new memory submission ---
 query = st.query_params
 if "lat" in query:
     try:
@@ -139,7 +144,7 @@ if "lat" in query:
     except Exception as e:
         st.error(f"❌ Error saving memory: {e}")
 
-# Handle delete
+# --- Handle delete request ---
 if "delete_row" in query:
     try:
         row_id = int(query["delete_row"])
@@ -147,4 +152,3 @@ if "delete_row" in query:
         st.success(f"🗑 Row {row_id} deleted.")
     except Exception as e:
         st.error(f"❌ Error deleting row: {e}")
-  
