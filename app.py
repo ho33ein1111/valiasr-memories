@@ -18,13 +18,12 @@ st.title("📍 Valiasr Street Memories")
 
 rows = sheet.get_all_records()
 memory_data = []
-for i, row in enumerate(rows, start=2):  # row 1 is header, data starts at row 2
+for i, row in enumerate(rows, start=2):  # row 1 is header
     row["row_id"] = i
     memory_data.append(row)
 
 memory_json = json.dumps(memory_data)
 
-# Inject HTML + JS
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -125,11 +124,10 @@ components.html(f"""
 </html>
 """, height=620)
 
-# 🧠 Debug query parameters
+# Receive data
 query = st.query_params
 st.write("🧪 Query params received:", query)
 
-# ✅ Save new memory
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -141,7 +139,6 @@ if "lat" in query:
     except Exception as e:
         st.error(f"❌ Error saving memory: {e}")
 
-# 🗑 Delete memory
 if "delete_row" in query:
     try:
         row_id = int(query["delete_row"])
