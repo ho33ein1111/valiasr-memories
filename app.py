@@ -16,10 +16,13 @@ sheet = client.open(st.secrets["SHEET_NAME"]).sheet1
 st.set_page_config(layout="wide")
 st.title("📍 Valiasr Street Memories")
 
-data = sheet.get_all_records()
-df = pd.DataFrame(data)
-df.columns = [col.strip() for col in df.columns]  # Clean headers
-memory_json = json.dumps(df.to_dict(orient="records"))
+rows = sheet.get_all_records()
+memory_data = []
+for i, row in enumerate(rows, start=2):  # start=2 to account for header
+    row["row_id"] = i
+    memory_data.append(row)
+
+memory_json = json.dumps(memory_data)
 
 # Inject map and JS
 components.html(f"""
@@ -62,7 +65,9 @@ components.html(f"""
           }});
 
           const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}`
+            content: `<b>User:</b> ${{mem.user_type}}<br>
+                      <b>Memory:</b> ${{mem.message}}<br>
+                      <button onclick='deleteMemory(${{mem.row_id}})'>🗑 Delete</button>`
           }});
 
           marker.addListener('click', () => popup.open(map, marker));
@@ -82,7 +87,7 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${"{"}lat{"}"}, ${"{"}lon{"}"})'>Save</button>
+                <button onclick='submitMemory(${{"{"}}lat{{"}"}}, ${{"{"}}lon{{"}"}})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
@@ -106,6 +111,11 @@ components.html(f"""
         window.location.href = `?${{params.toString()}}`;
       }}
 
+      function deleteMemory(row_id) {{
+        const params = new URLSearchParams({{ delete_row: row_id }});
+        window.location.href = `?${{params.toString()}}`;
+      }}
+
       window.onload = initMap;
     </script>
   </head>
@@ -115,8 +125,9 @@ components.html(f"""
 </html>
 """, height=620)
 
-# Receive data from JS via query params
+# Handle form submissions or deletions
 query = st.query_params
+
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -126,4 +137,12 @@ if "lat" in query:
         sheet.append_row([lat, lon, user_type, message])
         st.success("✅ Memory saved!")
     except Exception as e:
-        st.error(f"❌ Error: {e}")
+        st.error(f"❌ Error saving memory: {e}")
+
+if "delete_row" in query:
+    try:
+        row_id = int(query["delete_row"])
+        sheet.delete_row(row_id)
+        st.success("🗑 Memory deleted!")
+    except Exception as e:
+        st.error(f"❌ Error deleting memory: {e}")
