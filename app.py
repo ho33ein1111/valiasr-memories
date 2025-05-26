@@ -147,3 +147,4 @@ if "delete_row" in query:
         st.success(f"🗑 Row {row_id} deleted.")
     except Exception as e:
         st.error(f"❌ Error deleting row: {e}")
+  
