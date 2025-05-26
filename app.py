@@ -18,7 +18,7 @@ st.title("📍 Valiasr Street Memories")
 
 rows = sheet.get_all_records()
 memory_data = []
-for i, row in enumerate(rows, start=2):  # row 1 = header
+for i, row in enumerate(rows, start=2):
     row["row_id"] = i
     memory_data.append(row)
 
@@ -27,107 +27,107 @@ memory_json = json.dumps(memory_data)
 components.html(f"""
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>Map</title>
-    <style>
-      #map {{ height: 600px; width: 100%; }}
-      .form-popup {{
-        background: white;
-        border-radius: 10px;
-        padding: 10px;
-        width: 250px;
-        font-family: Arial;
-      }}
-      .form-popup input, .form-popup select, .form-popup textarea {{
-        width: 100%; margin-top: 5px;
-      }}
-      .form-popup button {{ margin-top: 10px; width: 48%; }}
-    </style>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAs4WWVHuqIR6e1AGAoOG6KdGn3hM4zook"></script>
-    <script>
-      let map;
-      function initMap() {{
-        map = new google.maps.Map(document.getElementById("map"), {{
-          center: {{ lat: 35.7448, lng: 51.3880 }},
-          zoom: 13
+<head>
+  <meta charset="utf-8">
+  <style>
+    #map {{ height: 600px; width: 100%; }}
+    .form-popup {{
+      background: white;
+      border-radius: 10px;
+      padding: 10px;
+      width: 250px;
+      font-family: Arial;
+    }}
+    .form-popup input, .form-popup select, .form-popup textarea {{
+      width: 100%; margin-top: 5px;
+    }}
+    .form-popup button {{ margin-top: 10px; width: 48%; }}
+  </style>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAs4WWVHuqIR6e1AGAoOG6KdGn3hM4zook"></script>
+  <script>
+    let map;
+    function initMap() {{
+      map = new google.maps.Map(document.getElementById("map"), {{
+        center: {{ lat: 35.7448, lng: 51.3880 }},
+        zoom: 13
+      }});
+
+      const memories = {memory_json};
+      memories.forEach(mem => {{
+        const marker = new google.maps.Marker({{
+          position: {{ lat: parseFloat(mem.lat), lng: parseFloat(mem.lon) }},
+          map: map,
+          icon: mem.user_type === "pedestrian" ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' :
+                mem.user_type === "vehicle_passenger" ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' :
+                'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
         }});
 
-        const memories = {memory_json};
-        memories.forEach(mem => {{
-          const marker = new google.maps.Marker({{
-            position: {{ lat: parseFloat(mem.lat), lng: parseFloat(mem.lon) }},
-            map: map,
-            icon: mem.user_type === "pedestrian" ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' :
-                  mem.user_type === "vehicle_passenger" ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' :
-                  'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-          }});
-
-          const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${{mem.user_type}}<br>
-                      <b>Memory:</b> ${{mem.message}}<br>
-                      <button onclick='deleteMemory(${{mem.row_id}})'>🗑 Delete</button>`
-          }});
-
-          marker.addListener('click', () => popup.open(map, marker));
+        const popup = new google.maps.InfoWindow({{
+          content: `<b>User:</b> ${{mem.user_type}}<br>
+                    <b>Memory:</b> ${{mem.message}}<br>
+                    <button onclick='deleteMemory(${{mem.row_id}})'>🗑 Delete</button>`
         }});
 
-        map.addListener("click", (e) => {{
-          const lat = e.latLng.lat().toFixed(6);
-          const lon = e.latLng.lng().toFixed(6);
-          const formHTML = `
-            <div class='form-popup'>
-              <label>User type:</label>
-              <select id='userType'>
-                <option value='pedestrian'>Pedestrian</option>
-                <option value='vehicle_passenger'>Vehicle Passenger</option>
-                <option value='traveler'>Traveler</option>
-              </select>
-              <label>Memory:</label>
-              <textarea id='memoryText' rows='3'></textarea>
-              <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${{\"{{\"}}lat{{\"}}\"}}, ${{\"{{\"}}lon{{\"}}\"}})'>Save</button>
-                <button onclick='infowindow.close()'>Cancel</button>
-              </div>
-            </div>`;
-          infowindow = new google.maps.InfoWindow({{
-            content: formHTML,
-            position: e.latLng
-          }});
-          infowindow.open(map);
+        marker.addListener('click', () => popup.open(map, marker));
+      }});
+
+      map.addListener("click", (e) => {{
+        const lat = e.latLng.lat().toFixed(6);
+        const lon = e.latLng.lng().toFixed(6);
+        const formHTML = `
+          <div class='form-popup'>
+            <label>User type:</label>
+            <select id='userType'>
+              <option value='pedestrian'>Pedestrian</option>
+              <option value='vehicle_passenger'>Vehicle Passenger</option>
+              <option value='traveler'>Traveler</option>
+            </select>
+            <label>Memory:</label>
+            <textarea id='memoryText' rows='3'></textarea>
+            <div style='display: flex; justify-content: space-between;'>
+              <button onclick='submitMemory(${{"{{"}}lat{{"}}"}}, ${{"{{"}}lon{{"}}"}})'>Save</button>
+              <button onclick='infowindow.close()'>Cancel</button>
+            </div>
+          </div>`;
+        infowindow = new google.maps.InfoWindow({{
+          content: formHTML,
+          position: e.latLng
         }});
-      }}
+        infowindow.open(map);
+      }});
+    }}
 
-      function submitMemory(lat, lon) {{
-        const userType = document.getElementById('userType').value;
-        const message = document.getElementById('memoryText').value;
-        const params = new URLSearchParams({{
-          lat: lat,
-          lon: lon,
-          user_type: userType,
-          message: message
-        }});
-        window.location.href = `?${{params.toString()}}`;
-      }}
+    function submitMemory(lat, lon) {{
+      const userType = document.getElementById('userType').value;
+      const message = document.getElementById('memoryText').value;
+      const payload = {{ lat: lat, lon: lon, user_type: userType, message: message }};
+      parent.postMessage(payload, '*');
+      infowindow.close();
+    }}
 
-      function deleteMemory(row_id) {{
-        const params = new URLSearchParams({{ delete_row: row_id }});
-        window.location.href = `?${{params.toString()}}`;
-      }}
+    function deleteMemory(row_id) {{
+      const payload = {{ delete_row: row_id }};
+      parent.postMessage(payload, '*');
+    }}
 
-      window.onload = initMap;
-    </script>
-  </head>
-  <body>
-    <div id="map"></div>
-  </body>
+    window.onload = initMap;
+  </script>
+</head>
+<body>
+  <div id="map"></div>
+</body>
 </html>
 """, height=620)
 
-# Handle query params
-query = st.query_params
-st.write("🧪 Query params received:", query)
+# Streamlit side: handle postMessage via component value
+payload = st.experimental_get_query_params()
 
+if not payload:
+    from streamlit_javascript import st_javascript
+    result = st_javascript("window.addEventListener('message', (event) => window.location = '?'+new URLSearchParams(event.data).toString());")
+
+# Handle memory save
+query = st.query_params
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -139,11 +139,11 @@ if "lat" in query:
     except Exception as e:
         st.error(f"❌ Error saving memory: {e}")
 
+# Handle delete
 if "delete_row" in query:
     try:
         row_id = int(query["delete_row"])
-        st.write(f"🔍 Deleting row {row_id}...")
         sheet.delete_row(row_id)
-        st.success(f"🗑 Row {row_id} deleted successfully.")
+        st.success(f"🗑 Row {row_id} deleted.")
     except Exception as e:
-        st.error(f"❌ Error deleting row {row_id}: {e}")
+        st.error(f"❌ Error deleting row: {e}")
