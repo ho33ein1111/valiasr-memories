@@ -2,7 +2,6 @@ import streamlit as st
 import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
-from streamlit_javascript import st_javascript
 import streamlit.components.v1 as components
 
 # --- Google Sheets setup ---
@@ -67,7 +66,7 @@ components.html(f"""
         const popup = new google.maps.InfoWindow({{
           content: `<b>User:</b> ${{mem.user_type}}<br>
                     <b>Memory:</b> ${{mem.message}}<br>
-                    <button onclick='deleteMemory(${{mem.row_id}})'>🗑 Delete</button>`
+                    <button onclick='window.location.search="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>`
         }});
         marker.addListener('click', () => popup.open(map, marker));
       }});
@@ -101,20 +100,13 @@ components.html(f"""
     function submitMemory(lat, lon) {{
       const userType = document.getElementById('userType').value;
       const message = document.getElementById('memoryText').value;
-      const payload = {{
+      const params = new URLSearchParams({{
         lat: lat,
         lon: lon,
         user_type: userType,
         message: message
-      }};
-      console.log("📤 Submitting memory:", payload);
-      window.parent.postMessage(payload, '*');
-    }}
-
-    function deleteMemory(row_id) {{
-      const payload = {{ delete_row: row_id }};
-      console.log("🗑 Deleting row:", payload);
-      window.parent.postMessage(payload, '*');
+      }});
+      window.location.search = '?' + params.toString();
     }}
 
     window.onload = initMap;
@@ -126,35 +118,23 @@ components.html(f"""
 </html>
 """, height=620)
 
-# --- Listen for postMessage data ---
-data = st_javascript("""
-new Promise((resolve) => {
-  window.addEventListener("message", (event) => {
-    console.log("📩 Received:", event.data);
-    resolve(event.data);
-  }, { once: true });
-});
-""")
+# --- Handle query parameters ---
+query = st.query_params
+if "lat" in query:
+    try:
+        sheet.append_row([
+            float(query["lat"]),
+            float(query["lon"]),
+            query["user_type"],
+            query["message"]
+        ])
+        st.success("✅ Memory saved!")
+    except Exception as e:
+        st.error(f"❌ Error saving: {e}")
 
-st.write("📥 JS postMessage data received:", data)
-
-# --- Save or Delete handling ---
-if data and isinstance(data, dict):
-    if "lat" in data:
-        try:
-            sheet.append_row([
-                float(data["lat"]),
-                float(data["lon"]),
-                data["user_type"],
-                data["message"]
-            ])
-            st.success("✅ Memory saved!")
-        except Exception as e:
-            st.error(f"❌ Error saving: {e}")
-
-    elif "delete_row" in data:
-        try:
-            sheet.delete_row(int(data["delete_row"]))
-            st.success("🗑 Row deleted.")
-        except Exception as e:
-            st.error(f"❌ Error deleting: {e}")
+if "delete_row" in query:
+    try:
+        sheet.delete_row(int(query["delete_row"]))
+        st.success("🗑 Row deleted.")
+    except Exception as e:
+        st.error(f"❌ Error deleting: {e}")
