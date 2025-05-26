@@ -19,6 +19,7 @@ st.title("📍 Valiasr Street Memories - Interactive Map")
 # --- Load existing data from Google Sheet ---
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
+df.columns = [col.strip() for col in df.columns]  # strip spaces if any
 
 # --- Send data to JS map ---
 memory_data = df.to_dict(orient="records")
