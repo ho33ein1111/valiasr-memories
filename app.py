@@ -107,11 +107,13 @@ components.html(f"""
         user_type: userType,
         message: message
       }};
+      console.log("📤 Submitting memory:", payload);
       window.parent.postMessage(payload, '*');
     }}
 
     function deleteMemory(row_id) {{
       const payload = {{ delete_row: row_id }};
+      console.log("🗑 Deleting row:", payload);
       window.parent.postMessage(payload, '*');
     }}
 
@@ -137,7 +139,7 @@ new Promise((resolve) => {
 st.write("📥 JS postMessage data received:", data)
 
 # --- Save or Delete handling ---
-if data:
+if data and isinstance(data, dict):
     if "lat" in data:
         try:
             sheet.append_row([
