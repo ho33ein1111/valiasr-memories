@@ -1,66 +1,127 @@
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-from streamlit_folium import st_folium
-import folium
 import json
-import os
+from oauth2client.service_account import ServiceAccountCredentials
 
-st.set_page_config(layout="wide")
-st.title("📍 Memories from Valiasr Street - Tehran")
-
-# Load Google Sheets credentials from secrets
+# --- Google Sheets setup ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GSPREAD_SA_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
+sheet = client.open(st.secrets["SHEET_NAME"]).sheet1
 
-# Access the sheet
-sheet_name = st.secrets["SHEET_NAME"]
-sheet = client.open(sheet_name).sheet1
+# --- Streamlit config ---
+st.set_page_config(layout="wide")
+st.title("📍 Valiasr Street Memories - Interactive Map")
 
-# Load data from sheet
+# --- Load existing data from Google Sheet ---
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 
-# Set up map
-m = folium.Map(location=[35.7448, 51.3880], zoom_start=13)
+# --- Send data to JS map ---
+memory_data = df.to_dict(orient="records")
 
-color_map = {
-    "pedestrian": "green",
-    "vehicle_passenger": "blue",
-    "traveler": "red"
-}
+components.html(f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Google Map Memory Map</title>
+    <style>
+      #map {{ height: 600px; width: 100%; }}
+      .form-popup {{
+        background: white;
+        border-radius: 10px;
+        padding: 10px;
+        width: 250px;
+        font-family: Arial;
+      }}
+      .form-popup input, .form-popup select, .form-popup textarea {{ width: 100%; margin-top: 5px; }}
+      .form-popup button {{ margin-top: 10px; width: 48%; }}
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAs4WWVHuqIR6e1AGAoOG6KdGn3hM4zook"></script>
+    <script>
+      let map;
+      function initMap() {{
+        map = new google.maps.Map(document.getElementById("map"), {{
+          center: {{ lat: 35.7448, lng: 51.3880 }},
+          zoom: 13,
+        }});
 
-for _, row in df.iterrows():
-    popup_html = f"""
-    <b>User type:</b> {row["user_type"]}<br>
-    <b>Memory:</b> {row["message"]}
-    """
-    popup = folium.Popup(popup_html, max_width=300)
-    folium.Marker(
-        location=[row["lat"], row["lon"]],
-        popup=popup,
-        icon=folium.Icon(color=color_map.get(row["user_type"], "gray"))
-    ).add_to(m)
+        const memories = {json.dumps(memory_data)};
+        memories.forEach(mem => {{
+          const marker = new google.maps.Marker({{
+            position: {{ lat: parseFloat(mem.lat), lng: parseFloat(mem.lon) }},
+            map: map,
+            icon: mem.user_type === "pedestrian" ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' :
+                  mem.user_type === "vehicle_passenger" ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' :
+                  'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+          }});
 
-# Show map and get click
-st.markdown("### 🗺️ Click on the map to select a location:")
-map_data = st_folium(m, width=700, height=500, returned_objects=["last_clicked"])
+          const popup = new google.maps.InfoWindow({{
+            content: `<b>User:</b> ${mem.user_type}<br><b>Memory:</b> ${mem.message}`
+          }});
 
-if map_data and map_data["last_clicked"]:
-    lat = map_data["last_clicked"]["lat"]
-    lon = map_data["last_clicked"]["lng"]
-    st.success(f"📌 Location selected: {lat:.4f}, {lon:.4f}")
+          marker.addListener('click', () => popup.open(map, marker));
+        }});
 
-    with st.form("memory_form"):
-        user_type = st.selectbox("Who are you?", ["pedestrian", "vehicle_passenger", "traveler"])
-        message = st.text_area("Write your memory here:", max_chars=200)
-        submitted = st.form_submit_button("📌 Submit Memory")
+        map.addListener("click", (e) => {{
+          const lat = e.latLng.lat().toFixed(6);
+          const lon = e.latLng.lng().toFixed(6);
+          const formHTML = `
+            <div class='form-popup'>
+              <label>User type:</label>
+              <select id='userType'>
+                <option value='pedestrian'>Pedestrian</option>
+                <option value='vehicle_passenger'>Vehicle Passenger</option>
+                <option value='traveler'>Traveler</option>
+              </select>
+              <label>Memory:</label>
+              <textarea id='memoryText' rows='3'></textarea>
+              <div style='display: flex; justify-content: space-between;'>
+                <button onclick='submitMemory({lat}, {lon})'>Save</button>
+                <button onclick='infowindow.close()'>Cancel</button>
+              </div>
+            </div>`;
 
-        if submitted and message.strip():
-            sheet.append_row([lat, lon, user_type, message])
-            st.success("✅ Memory saved! Refresh to see it on the map.")
-else:
-    st.info("⬅️ Click on the map to choose a location.")
+          infowindow = new google.maps.InfoWindow({{
+            content: formHTML,
+            position: e.latLng
+          }});
+          infowindow.open(map);
+        }});
+      }}
+
+      function submitMemory(lat, lon) {{
+        const userType = document.getElementById('userType').value;
+        const message = document.getElementById('memoryText').value;
+        const payload = {{ lat: lat, lon: lon, user_type: userType, message: message }};
+        parent.postMessage(payload, '*');
+        infowindow.close();
+      }}
+
+      window.onload = initMap;
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+  </body>
+</html>
+""", height=620)
+
+# --- Receive data from JS ---
+received = st.experimental_get_query_params()
+
+if received.get("lat"):
+    try:
+        lat = float(received["lat"][0])
+        lon = float(received["lon"][0])
+        user_type = received["user_type"][0]
+        message = received["message"][0]
+
+        sheet.append_row([lat, lon, user_type, message])
+        st.success("✅ Memory saved!")
+    except Exception as e:
+        st.error(f"Error saving memory: {e}")
