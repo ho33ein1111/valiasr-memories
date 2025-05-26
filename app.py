@@ -100,17 +100,23 @@ components.html(f"""
       }});
     }}
 
-    function submitMemory(lat, lon) {{
-      const userType = document.getElementById('userType').value;
-      const message = document.getElementById('memoryText').value;
-      const payload = {{ lat: lat, lon: lon, user_type: userType, message: message }};
-      window.parent.postMessage(payload, '*');
-    }}
+    function submitMemory(lat, lon) {
+  const userType = document.getElementById('userType').value;
+  const message = document.getElementById('memoryText').value;
+  const payload = {
+    lat: lat,
+    lon: lon,
+    user_type: userType,
+    message: message
+  };
+  window.parent.postMessage(payload, '*');
+}
 
-    function deleteMemory(row_id) {{
-      const payload = {{ delete_row: row_id }};
-      window.parent.postMessage(payload, '*');
-    }}
+function deleteMemory(row_id) {
+  const payload = { delete_row: row_id };
+  window.parent.postMessage(payload, '*');
+}
+
 
     window.onload = initMap;
   </script>
