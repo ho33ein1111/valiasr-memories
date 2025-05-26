@@ -82,7 +82,7 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${lat}, ${lon})'>Save</button>
+                <button onclick='submitMemory(${"{"}lat{"}"}, ${"{"}lon{"}"})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
