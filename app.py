@@ -5,31 +5,29 @@ import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# --- Google Sheets setup ---
+# Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GSPREAD_SA_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open(st.secrets["SHEET_NAME"]).sheet1
 
-# --- Streamlit config ---
+# Load data
 st.set_page_config(layout="wide")
-st.title("📍 Valiasr Street Memories - Interactive Map")
+st.title("📍 Valiasr Street Memories")
 
-# --- Load existing data from Google Sheet ---
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
-df.columns = [col.strip() for col in df.columns]  # strip spaces if any
+df.columns = [col.strip() for col in df.columns]  # Clean headers
+memory_json = json.dumps(df.to_dict(orient="records"))
 
-# --- Send data to JS map ---
-memory_data = df.to_dict(orient="records")
-
+# Inject map and JS
 components.html(f"""
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Google Map Memory Map</title>
+    <title>Map</title>
     <style>
       #map {{ height: 600px; width: 100%; }}
       .form-popup {{
@@ -39,7 +37,9 @@ components.html(f"""
         width: 250px;
         font-family: Arial;
       }}
-      .form-popup input, .form-popup select, .form-popup textarea {{ width: 100%; margin-top: 5px; }}
+      .form-popup input, .form-popup select, .form-popup textarea {{
+        width: 100%; margin-top: 5px;
+      }}
       .form-popup button {{ margin-top: 10px; width: 48%; }}
     </style>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAs4WWVHuqIR6e1AGAoOG6KdGn3hM4zook"></script>
@@ -48,10 +48,10 @@ components.html(f"""
       function initMap() {{
         map = new google.maps.Map(document.getElementById("map"), {{
           center: {{ lat: 35.7448, lng: 51.3880 }},
-          zoom: 13,
+          zoom: 13
         }});
 
-        const memories = {json.dumps(memory_data)};
+        const memories = {memory_json};
         memories.forEach(mem => {{
           const marker = new google.maps.Marker({{
             position: {{ lat: parseFloat(mem.lat), lng: parseFloat(mem.lon) }},
@@ -62,7 +62,7 @@ components.html(f"""
           }});
 
           const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${mem.user_type}<br><b>Memory:</b> ${mem.message}`
+            content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}`
           }});
 
           marker.addListener('click', () => popup.open(map, marker));
@@ -82,11 +82,10 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory({lat}, {lon})'>Save</button>
+                <button onclick='submitMemory(${lat}, ${lon})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
-
           infowindow = new google.maps.InfoWindow({{
             content: formHTML,
             position: e.latLng
@@ -98,9 +97,13 @@ components.html(f"""
       function submitMemory(lat, lon) {{
         const userType = document.getElementById('userType').value;
         const message = document.getElementById('memoryText').value;
-        const payload = {{ lat: lat, lon: lon, user_type: userType, message: message }};
-        parent.postMessage(payload, '*');
-        infowindow.close();
+        const params = new URLSearchParams({{
+          lat: lat,
+          lon: lon,
+          user_type: userType,
+          message: message
+        }});
+        window.location.href = `?${{params.toString()}}`;
       }}
 
       window.onload = initMap;
@@ -112,17 +115,15 @@ components.html(f"""
 </html>
 """, height=620)
 
-# --- Receive data from JS ---
-received = st.experimental_get_query_params()
-
-if received.get("lat"):
+# Receive data from JS via query params
+query = st.query_params
+if "lat" in query:
     try:
-        lat = float(received["lat"][0])
-        lon = float(received["lon"][0])
-        user_type = received["user_type"][0]
-        message = received["message"][0]
-
+        lat = float(query["lat"])
+        lon = float(query["lon"])
+        user_type = query["user_type"]
+        message = query["message"]
         sheet.append_row([lat, lon, user_type, message])
         st.success("✅ Memory saved!")
     except Exception as e:
-        st.error(f"Error saving memory: {e}")
+        st.error(f"❌ Error: {e}")
