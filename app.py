@@ -18,13 +18,13 @@ st.title("📍 Valiasr Street Memories")
 
 rows = sheet.get_all_records()
 memory_data = []
-for i, row in enumerate(rows, start=2):  # start=2 to account for header
+for i, row in enumerate(rows, start=2):  # row 1 is header, data starts at row 2
     row["row_id"] = i
     memory_data.append(row)
 
 memory_json = json.dumps(memory_data)
 
-# Inject map and JS
+# Inject HTML + JS
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -87,7 +87,7 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${{"{"}}lat{{"}"}}, ${{"{"}}lon{{"}"}})'>Save</button>
+                <button onclick='submitMemory(${{\"{\"}}lat{{\"}\"}}, ${{\"{\"}}lon{{\"}\"}})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
@@ -125,9 +125,11 @@ components.html(f"""
 </html>
 """, height=620)
 
-# Handle form submissions or deletions
+# 🧠 Debug query parameters
 query = st.query_params
+st.write("🧪 Query params received:", query)
 
+# ✅ Save new memory
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -139,10 +141,12 @@ if "lat" in query:
     except Exception as e:
         st.error(f"❌ Error saving memory: {e}")
 
+# 🗑 Delete memory
 if "delete_row" in query:
     try:
         row_id = int(query["delete_row"])
+        st.write(f"🔍 Attempting to delete row {row_id}...")
         sheet.delete_row(row_id)
-        st.success("🗑 Memory deleted!")
+        st.success(f"🗑 Row {row_id} deleted successfully.")
     except Exception as e:
-        st.error(f"❌ Error deleting memory: {e}")
+        st.error(f"❌ Error deleting memory (row {row_id}): {e}")
