@@ -56,36 +56,23 @@ if "lat" in query:
         message = query["message"]
         sheet.append_row([lat, lon, user_type, message])
         st.success("✅ Memory saved!")
-        st.markdown(
-            "<script>window.location.href = window.location.pathname;</script>",
-            unsafe_allow_html=True
-        )
-        st.stop()
+        st.query_params.clear()
+        st.rerun()
     except Exception as e:
         st.error(f"❌ Error: {e}")
-        st.markdown(
-            "<script>window.location.href = window.location.pathname;</script>",
-            unsafe_allow_html=True
-        )
-        st.stop()
+        st.query_params.clear()
+        st.rerun()
 
 if "delete_row" in query:
     try:
         sheet.delete_rows(int(query["delete_row"]))
         st.success("🗑 Row deleted.")
-        st.markdown(
-            "<script>window.location.href = window.location.pathname;</script>",
-            unsafe_allow_html=True
-        )
-        st.stop()
+        st.query_params.clear()
+        st.rerun()
     except Exception as e:
         st.error(f"❌ Error deleting: {e}")
-        st.markdown(
-            "<script>window.location.href = window.location.pathname;</script>",
-            unsafe_allow_html=True
-        )
-        st.stop()
-
+        st.query_params.clear()
+        st.rerun()
 
 # ========== Inject Google Maps & Memory Form ==========
 components.html(f"""
