@@ -108,8 +108,7 @@ components.html(f"""
 
           const popup = new google.maps.InfoWindow({{
             content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
-                      <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>
-                      <button onclick='showEditForm(${{mem.row_id}}, \"${{mem.user_type}}\", \"${{mem.message.replace(/\"/g, "&quot;")}}\")'>✏️ Edit</button>`
+                      <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>`
           }});
 
           marker.addListener('click', () => popup.open(map, marker));
