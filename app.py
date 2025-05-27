@@ -25,6 +25,18 @@ memory_json = json.dumps(df.to_dict(orient="records"))
 # Receive data from JS via query params
 query = st.query_params
 
+if "update_row" in query:
+    try:
+        row_id = int(query["update_row"])
+        new_user_type = query["edit_user_type"]
+        new_message = query["edit_message"]
+        sheet.update(f"C{row_id}:C{row_id}", [[new_user_type]])
+        sheet.update(f"D{row_id}:D{row_id}", [[new_message]])
+        st.success("✏️ Memory updated!")
+        st.rerun()
+    except Exception as e:
+        st.error(f"❌ Error updating: {e}")
+        
 if "lat" in query:
     try:
         lat = float(query["lat"])
