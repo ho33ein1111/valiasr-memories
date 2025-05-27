@@ -97,22 +97,33 @@ components.html(f"""
         infowindow = new google.maps.InfoWindow();
 
         const memories = {memory_json};
-        memories.forEach(mem => {{
-          const marker = new google.maps.Marker({{
-            position: {{ lat: parseFloat(mem.lat), lng: parseFloat(mem.lon) }},
-            map: map,
-            icon: mem.user_type === "pedestrian" ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' :
-                  mem.user_type === "vehicle_passenger" ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' :
-                  'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-          }});
 
-          const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
-                      <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>`
-          }});
+        memories.forEach(mem => {
+  const marker = new google.maps.Marker({
+    position: { lat: parseFloat(mem.lat), lng: parseFloat(mem.lon) },
+    map: map,
+    icon: mem.user_type === "pedestrian" ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' :
+          mem.user_type === "vehicle_passenger" ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' :
+          'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+  });
 
-          marker.addListener('click', () => popup.open(map, marker));
-        }});
+  // ------------------------- Popup with Edit & Delete --------------------------
+  const popup = new google.maps.InfoWindow({
+    content: `<b>User:</b> ${mem.user_type}<br><b>Memory:</b> ${mem.message}<br>
+      <button onclick='window.location.href="?delete_row=${mem.row_id}"'>🗑 Delete</button>
+      <!-- // EDIT BUTTON START -->
+      <button onclick="showEditForm(
+        ${mem.row_id},
+        '${mem.user_type.replace(/'/g, "\\'")}',
+        '${mem.message.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/(\r\n|\n|\r)/gm, " ")}'
+      )">✏️ Edit</button>
+      <!-- // EDIT BUTTON END -->`
+  });
+  // ---------------------------------------------------------------------------
+
+  marker.addListener('click', () => popup.open(map, marker));
+});
+
 
         map.addListener("click", function(e) {{
           const lat = e.latLng.lat().toFixed(6);
