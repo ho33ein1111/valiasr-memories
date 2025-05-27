@@ -22,7 +22,7 @@ df.columns = [col.strip() for col in df.columns]
 df["row_id"] = df.index + 2
 memory_json = json.dumps(df.to_dict(orient="records"))
 
-# Receive data from JS via query params
+# Handle query params (add/edit/delete)
 query = st.query_params
 
 if "update_row" in query:
@@ -36,7 +36,7 @@ if "update_row" in query:
         st.rerun()
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
-        
+
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -63,6 +63,7 @@ if "delete_row" in query:
         st.query_params.clear()
         st.rerun()
 
+# HTML/JS for the Google Map
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -105,21 +106,24 @@ components.html(f"""
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
 
-          // ==== Safely escape the string for the JS function ====
-          const safeUserType = String(mem.user_type || '').replace(/'/g, "\\\\'").replace(/"/g, "&quot;");
-          const safeMessage = String(mem.message || '').replace(/'/g, "\\\\'").replace(/"/g, "&quot;").replace(/(\\r\\n|\\n|\\r)/gm, " ");
+          // Safely escape string for JS
+          const safeUserType = String(mem.user_type || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+          const safeMessage = String(mem.message || '').replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/(\r\n|\n|\r)/gm, " ");
 
-          // ==== Popup with Edit & Delete buttons ====
           const popup = new google.maps.InfoWindow({{
             content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
               <button onclick='window.location.href="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>
-              <button onclick="window.showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>`
+              <button onclick="window.showEditForm(${{mem.row_id}}, '${safeUserType}', '${safeMessage}')">✏️ Edit</button>`
           }});
 
-          marker.addListener('click', () => popup.open(map, marker));
+          marker.addListener('click', () => {{
+            infowindow.close(); // Always close previous popup
+            popup.open(map, marker);
+          }});
         }});
 
         map.addListener("click", function(e) {{
+          infowindow.close(); // Always close before opening
           const lat = e.latLng.lat().toFixed(6);
           const lon = e.latLng.lng().toFixed(6);
           const formHTML = `
@@ -155,8 +159,9 @@ components.html(f"""
         window.location.href = `?${{params.toString()}}`;
       }}
 
-      // ----- Make edit functions globally accessible -----
+      // Edit popup function (global)
       window.showEditForm = function(row_id, user_type, message) {{
+        infowindow.close(); // Always close before opening edit form
         message = message.replace(/&quot;/g, '"');
         const formHTML = `
           <div class='form-popup'>
