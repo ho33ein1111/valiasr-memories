@@ -136,7 +136,7 @@ if "lat" in query:
 
 if "delete_row" in query:
     try:
-        sheet.delete_row(int(query["delete_row"]))
+        sheet.delete_rows(int(query["delete_row"]))
         st.success("🗑 Row deleted.")
         st.experimental_rerun()
     except Exception as e:
