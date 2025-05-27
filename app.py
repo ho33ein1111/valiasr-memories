@@ -36,7 +36,7 @@ if "update_row" in query:
         st.rerun()
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
-        
+
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -63,7 +63,6 @@ if "delete_row" in query:
         st.query_params.clear()
         st.rerun()
 
-# Inject map and JS
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -106,14 +105,13 @@ components.html(f"""
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
 
-          // -------- Popup with Edit & Delete --------
           const safeUserType = (mem.user_type || "").replace(/'/g, "\\\\'").replace(/"/g, "&quot;");
           const safeMessage = (mem.message || "").replace(/'/g, "\\\\'").replace(/"/g, "&quot;").replace(/(\\r\\n|\\n|\\r)/gm, " ");
           const popup = new google.maps.InfoWindow({{
             content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
               <button onclick='window.location.href="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>
               <!-- // EDIT BUTTON START -->
-              <button onclick="showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>
+              <button onclick="window.showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>
               <!-- // EDIT BUTTON END -->`
           }});
 
@@ -155,7 +153,9 @@ components.html(f"""
         }});
         window.location.href = `?${{params.toString()}}`;
       }}
-      function showEditForm(row_id, user_type, message) {{
+
+      // EDIT HANDLERS -- DAST BEZANID
+      window.showEditForm = function(row_id, user_type, message) {{
         message = message.replace(/&quot;/g, '"');
         const formHTML = `
           <div class='form-popup'>
@@ -168,7 +168,7 @@ components.html(f"""
             <label>Memory:</label>
             <textarea id='editMemoryText' rows='3'>${{message}}</textarea>
             <div style='display: flex; justify-content: space-between;'>
-              <button onclick='submitEdit(${{row_id}})'>Update</button>
+              <button onclick='window.submitEdit(${{row_id}})'>Update</button>
               <button onclick='infowindow.close()'>Cancel</button>
             </div>
           </div>`;
@@ -176,7 +176,7 @@ components.html(f"""
         infowindow.open(map);
       }}
 
-      function submitEdit(row_id) {{
+      window.submitEdit = function(row_id) {{
         const userType = document.getElementById('editUserType').value;
         const message = document.getElementById('editMemoryText').value;
         const params = new URLSearchParams({{
