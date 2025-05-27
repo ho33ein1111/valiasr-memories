@@ -5,34 +5,24 @@ import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# --------- Google Sheets setup ---------
+# Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GSPREAD_SA_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open(st.secrets["SHEET_NAME"]).worksheet("valiasr_memories")
 
-# --------- Load data & add safe JS fields ---------
+# Load data
 st.set_page_config(layout="wide")
 st.title("📍 Valiasr Street Memories")
-
-def escape_js_string(s):
-    if not isinstance(s, str): return ""
-    s = s.replace("\\", "\\\\")   # backslash
-    s = s.replace("'", "\\'")
-    s = s.replace('"', '&quot;')
-    s = s.replace("\n", " ").replace("\r", " ")
-    return s
 
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 df.columns = [col.strip() for col in df.columns]
-df["row_id"] = df.index + 2  # 2-based for gspread
-df["js_user_type"] = df["user_type"].apply(escape_js_string)
-df["js_message"]   = df["message"].apply(escape_js_string)
+df["row_id"] = df.index + 2
 memory_json = json.dumps(df.to_dict(orient="records"))
 
-# --------- Handle query params for save, delete, update ---------
+# Receive data from JS via query params
 query = st.query_params
 
 if "update_row" in query:
@@ -43,13 +33,10 @@ if "update_row" in query:
         sheet.update(f"C{row_id}:C{row_id}", [[new_user_type]])
         sheet.update(f"D{row_id}:D{row_id}", [[new_message]])
         st.success("✏️ Memory updated!")
-        st.query_params.clear()
         st.rerun()
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
-        st.query_params.clear()
-        st.rerun()
-
+        
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -76,7 +63,6 @@ if "delete_row" in query:
         st.query_params.clear()
         st.rerun()
 
-# --------- Inject Google Map & JS ---------
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -101,11 +87,6 @@ components.html(f"""
     <script>
       let map;
       let infowindow = null;
-
-      function closeAllInfoWindows() {{
-        if (infowindow) infowindow.close();
-      }}
-
       function initMap() {{
         map = new google.maps.Map(document.getElementById("map"), {{
           center: {{ lat: 35.7448, lng: 51.3880 }},
@@ -124,22 +105,21 @@ components.html(f"""
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
 
-          // MAIN POPUP with Edit & Delete
+          // ==== Safely escape the string for the JS function ====
+          const safeUserType = String(mem.user_type || '').replace(/'/g, "\\\\'").replace(/"/g, "&quot;");
+          const safeMessage = String(mem.message || '').replace(/'/g, "\\\\'").replace(/"/g, "&quot;").replace(/(\\r\\n|\\n|\\r)/gm, " ");
+
+          // ==== Popup with Edit & Delete buttons ====
           const popup = new google.maps.InfoWindow({{
             content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
               <button onclick='window.location.href="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>
-              <button onclick="window.showEditForm(${{mem.row_id}}, '${{mem.js_user_type}}', '${{mem.js_message}}')">✏️ Edit</button>`
+              <button onclick="window.showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>`
           }});
 
-          marker.addListener('click', () => {{
-            closeAllInfoWindows();
-            popup.open(map, marker);
-          }});
+          marker.addListener('click', () => popup.open(map, marker));
         }});
 
-        // Click for new memory
         map.addListener("click", function(e) {{
-          closeAllInfoWindows();
           const lat = e.latLng.lat().toFixed(6);
           const lon = e.latLng.lng().toFixed(6);
           const formHTML = `
@@ -161,29 +141,6 @@ components.html(f"""
           infowindow.setPosition(e.latLng);
           infowindow.open(map);
         }});
-
-        // Attach showEditForm to window for global access
-        window.showEditForm = function(row_id, user_type, message) {{
-          closeAllInfoWindows();
-          message = message.replace(/&quot;/g, '"');
-          const formHTML = `
-            <div class='form-popup'>
-              <label>User type:</label>
-              <select id='editUserType'>
-                <option value='pedestrian' ${{user_type=='pedestrian'?'selected':''}}>Pedestrian</option>
-                <option value='vehicle_passenger' ${{user_type=='vehicle_passenger'?'selected':''}}>Vehicle Passenger</option>
-                <option value='traveler' ${{user_type=='traveler'?'selected':''}}>Traveler</option>
-              </select>
-              <label>Memory:</label>
-              <textarea id='editMemoryText' rows='3'>${{message}}</textarea>
-              <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitEdit(${{row_id}})'>Update</button>
-                <button onclick='infowindow.close()'>Cancel</button>
-              </div>
-            </div>`;
-          infowindow.setContent(formHTML);
-          infowindow.open(map);
-        }};
       }}
 
       function submitMemory(lat, lon) {{
@@ -197,7 +154,30 @@ components.html(f"""
         }});
         window.location.href = `?${{params.toString()}}`;
       }}
-      function submitEdit(row_id) {{
+
+      // ----- Make edit functions globally accessible -----
+      window.showEditForm = function(row_id, user_type, message) {{
+        message = message.replace(/&quot;/g, '"');
+        const formHTML = `
+          <div class='form-popup'>
+            <label>User type:</label>
+            <select id='editUserType'>
+              <option value='pedestrian' ${{user_type=='pedestrian'?'selected':''}}>Pedestrian</option>
+              <option value='vehicle_passenger' ${{user_type=='vehicle_passenger'?'selected':''}}>Vehicle Passenger</option>
+              <option value='traveler' ${{user_type=='traveler'?'selected':''}}>Traveler</option>
+            </select>
+            <label>Memory:</label>
+            <textarea id='editMemoryText' rows='3'>${{message}}</textarea>
+            <div style='display: flex; justify-content: space-between;'>
+              <button onclick='window.submitEdit(${{row_id}})'>Update</button>
+              <button onclick='infowindow.close()'>Cancel</button>
+            </div>
+          </div>`;
+        infowindow.setContent(formHTML);
+        infowindow.open(map);
+      }}
+
+      window.submitEdit = function(row_id) {{
         const userType = document.getElementById('editUserType').value;
         const message = document.getElementById('editMemoryText').value;
         const params = new URLSearchParams({{
