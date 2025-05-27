@@ -5,24 +5,47 @@ import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Google Sheets setup
+# Set wide layout, inject CSS/HTML for a beautiful header (only ONCE)
+st.set_page_config(layout="wide")
+
+st.markdown("""
+<style>
+.header-title {
+  font-size: 2.2em;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-bottom: 0.2em;
+}
+.header-sep {
+  width: 100%;
+  height: 4px;
+  border: none;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ff512f, #f09819, #ffe259, #f09819, #ff512f);
+  margin-bottom: 32px;
+}
+</style>
+<div class="header-title">📍 Valiasr Street Memories</div>
+<hr class="header-sep">
+""", unsafe_allow_html=True)
+
+# ========== Google Sheets setup ==========
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GSPREAD_SA_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open(st.secrets["SHEET_NAME"]).worksheet("valiasr_memories")
 
-# Load data
-st.set_page_config(layout="wide")
-st.title("📍 Valiasr Street Memories")
-
+# ========== Load data ==========
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 df.columns = [col.strip() for col in df.columns]
-df["row_id"] = df.index + 2
+df["row_id"] = df.index + 2  # row_id for delete button
 memory_json = json.dumps(df.to_dict(orient="records"))
 
-# Receive data from JS via query params
+# ========== Receive data from JS via query params ==========
 query = st.query_params
 
 if "lat" in query:
@@ -33,8 +56,8 @@ if "lat" in query:
         message = query["message"]
         sheet.append_row([lat, lon, user_type, message])
         st.success("✅ Memory saved!")
-        st.query_params.clear()    # پاک کردن پارامترها
-        st.rerun()                 # ری‌ران صفحه
+        st.query_params.clear()
+        st.rerun()
     except Exception as e:
         st.error(f"❌ Error: {e}")
         st.query_params.clear()
@@ -51,7 +74,7 @@ if "delete_row" in query:
         st.query_params.clear()
         st.rerun()
 
-# Inject map and JS
+# ========== Inject Google Maps & Memory Form ==========
 components.html(f"""
 <!DOCTYPE html>
 <html>
