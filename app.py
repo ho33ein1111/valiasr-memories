@@ -181,16 +181,28 @@ components.html(f"""
         infowindow.open(map);
       }}
 
-      window.submitEdit = function(row_id) {{
-        const userType = document.getElementById('editUserType').value;
-        const message = document.getElementById('editMemoryText').value;
-        const params = new URLSearchParams({{
-          update_row: row_id,
-          edit_user_type: userType,
-          edit_message: message
-        }});
-        window.location.href = `?${params.toString()}`;
-      }}
+window.showEditForm = function(row_id, user_type, message) {{
+    infowindow.close();
+    message = message.replace(/&quot;/g, '"');
+    const formHTML = `
+      <div class='form-popup'>
+        <label>User type:</label>
+        <select id='editUserType'>
+          <option value='pedestrian' ${user_type === 'pedestrian' ? 'selected' : ''}>Pedestrian</option>
+          <option value='vehicle_passenger' ${user_type === 'vehicle_passenger' ? 'selected' : ''}>Vehicle Passenger</option>
+          <option value='traveler' ${user_type === 'traveler' ? 'selected' : ''}>Traveler</option>
+        </select>
+        <label>Memory:</label>
+        <textarea id='editMemoryText' rows='3'>${message}</textarea>
+        <div style='display: flex; justify-content: space-between;'>
+          <button onclick='window.submitEdit(${row_id})'>Update</button>
+          <button onclick='infowindow.close()'>Cancel</button>
+        </div>
+      </div>`;
+    infowindow.setContent(formHTML);
+    infowindow.open(map);
+})
+
 
       window.onload = initMap;
     </script>
