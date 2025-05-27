@@ -36,7 +36,7 @@ if "update_row" in query:
         st.rerun()
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
-
+        
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -105,14 +105,15 @@ components.html(f"""
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
 
-          const safeUserType = (mem.user_type || "").replace(/'/g, "\\\\'").replace(/"/g, "&quot;");
-          const safeMessage = (mem.message || "").replace(/'/g, "\\\\'").replace(/"/g, "&quot;").replace(/(\\r\\n|\\n|\\r)/gm, " ");
+          // ==== Safely escape the string for the JS function ====
+          const safeUserType = String(mem.user_type || '').replace(/'/g, "\\\\'").replace(/"/g, "&quot;");
+          const safeMessage = String(mem.message || '').replace(/'/g, "\\\\'").replace(/"/g, "&quot;").replace(/(\\r\\n|\\n|\\r)/gm, " ");
+
+          // ==== Popup with Edit & Delete buttons ====
           const popup = new google.maps.InfoWindow({{
             content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
               <button onclick='window.location.href="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>
-              <!-- // EDIT BUTTON START -->
-              <button onclick="window.showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>
-              <!-- // EDIT BUTTON END -->`
+              <button onclick="window.showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>`
           }});
 
           marker.addListener('click', () => popup.open(map, marker));
@@ -154,7 +155,7 @@ components.html(f"""
         window.location.href = `?${{params.toString()}}`;
       }}
 
-      // EDIT HANDLERS -- DAST BEZANID
+      // ----- Make edit functions globally accessible -----
       window.showEditForm = function(row_id, user_type, message) {{
         message = message.replace(/&quot;/g, '"');
         const formHTML = `
