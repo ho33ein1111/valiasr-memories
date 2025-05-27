@@ -32,7 +32,7 @@ if "update_row" in query:
         sheet.update(f"C{row_id}", new_user_type)
         sheet.update(f"D{row_id}", new_message)
         st.success("✏️ Memory updated!")
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
 
@@ -45,7 +45,7 @@ if "lat" in query:
         message = query["message"]
         sheet.append_row([lat, lon, user_type, message])
         st.success("✅ Memory saved!")
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
@@ -54,7 +54,7 @@ if "delete_row" in query:
     try:
         sheet.delete_rows(int(query["delete_row"]))
         st.success("🗑 Row deleted.")
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error(f"❌ Error deleting: {e}")
 
