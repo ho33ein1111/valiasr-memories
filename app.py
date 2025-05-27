@@ -22,8 +22,8 @@ df.columns = [col.strip() for col in df.columns]
 df["row_id"] = df.index + 2
 memory_json = json.dumps(df.to_dict(orient="records"))
 
-# Handle update
 query = st.query_params
+
 if "update_row" in query:
     try:
         row_id = int(query["update_row"])
@@ -36,7 +36,6 @@ if "update_row" in query:
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
 
-# Handle save
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -49,7 +48,6 @@ if "lat" in query:
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
-# Handle delete
 if "delete_row" in query:
     try:
         sheet.delete_rows(int(query["delete_row"]))
@@ -58,7 +56,6 @@ if "delete_row" in query:
     except Exception as e:
         st.error(f"❌ Error deleting: {e}")
 
-# Inject map and JS
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -82,11 +79,15 @@ components.html(f"""
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDi9TbBUZ33JQS3wU4DDCi4t2RvqbXAs_4"></script>
     <script>
       let map;
+      let infowindow = null;
+
       function initMap() {{
         map = new google.maps.Map(document.getElementById("map"), {{
           center: {{ lat: 35.7448, lng: 51.3880 }},
           zoom: 13
         }});
+
+        infowindow = new google.maps.InfoWindow();
 
         const memories = {memory_json};
         memories.forEach(mem => {{
@@ -98,17 +99,18 @@ components.html(f"""
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
 
-          const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${{mem.user_type}}<br>
-                      <b>Memory:</b> ${{mem.message}}<br>
-                      <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>
-                      <button onclick='showEditForm(${{mem.row_id}}, \"${{mem.user_type}}\", \"${{mem.message.replace(/\"/g, "&quot;")}}\")'>✏️ Edit</button>`
-          }});
+          const popupContent = `<b>User:</b> ${{mem.user_type}}<br>
+            <b>Memory:</b> ${{mem.message}}<br>
+            <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>
+            <button onclick='showEditForm(${{mem.row_id}}, \"${{mem.user_type}}\", \"${{mem.message.replace(/\"/g, "&quot;")}}\")'>✏️ Edit</button>`;
 
-          marker.addListener('click', () => popup.open(map, marker));
+          marker.addListener('click', function() {{
+            infowindow.setContent(popupContent);
+            infowindow.open(map, marker);
+          }});
         }});
 
-        map.addListener("click", (e) => {{
+        map.addListener("click", function(e) {{
           const lat = e.latLng.lat().toFixed(6);
           const lon = e.latLng.lng().toFixed(6);
           const formHTML = `
@@ -126,10 +128,8 @@ components.html(f"""
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
-          infowindow = new google.maps.InfoWindow({{
-            content: formHTML,
-            position: e.latLng
-          }});
+          infowindow.setContent(formHTML);
+          infowindow.setPosition(e.latLng);
           infowindow.open(map);
         }});
       }}
@@ -178,11 +178,7 @@ components.html(f"""
         window.location.href = `?${{params.toString()}}`;
       }}
 
-      let infowindow = null;
-      window.onload = function() {{
-        infowindow = new google.maps.InfoWindow();
-        initMap();
-      }};
+      window.onload = initMap;
     </script>
   </head>
   <body>
