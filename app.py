@@ -22,21 +22,8 @@ df.columns = [col.strip() for col in df.columns]
 df["row_id"] = df.index + 2
 memory_json = json.dumps(df.to_dict(orient="records"))
 
+# Receive data from JS via query params
 query = st.query_params
-
-if "update_row" in query:
-    try:
-        row_id = int(query["update_row"])
-        new_user_type = query["edit_user_type"]
-        new_message = query["edit_message"]
-        sheet.update(f"C{row_id}:C{row_id}", [[new_user_type]])
-        sheet.update(f"D{row_id}:D{row_id}", [[new_message]])
-        st.success("✏️ Memory updated!")
-        st.rerun()
-    except Exception as e:
-        st.error(f"❌ Error updating: {e}")
-
-
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -57,6 +44,7 @@ if "delete_row" in query:
     except Exception as e:
         st.error(f"❌ Error deleting: {e}")
 
+# Inject map and JS
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -81,7 +69,6 @@ components.html(f"""
     <script>
       let map;
       let infowindow = null;
-
       function initMap() {{
         map = new google.maps.Map(document.getElementById("map"), {{
           center: {{ lat: 35.7448, lng: 51.3880 }},
@@ -100,15 +87,12 @@ components.html(f"""
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
 
-          const popupContent = `<b>User:</b> ${{mem.user_type}}<br>
-            <b>Memory:</b> ${{mem.message}}<br>
-            <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>
-            <button onclick='showEditForm(${{mem.row_id}}, \"${{mem.user_type}}\", \"${{mem.message.replace(/\"/g, "&quot;")}}\")'>✏️ Edit</button>`;
-
-          marker.addListener('click', function() {{
-            infowindow.setContent(popupContent);
-            infowindow.open(map, marker);
+          const popup = new google.maps.InfoWindow({{
+            content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
+                      <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>`
           }});
+
+          marker.addListener('click', () => popup.open(map, marker));
         }});
 
         map.addListener("click", function(e) {{
@@ -143,38 +127,6 @@ components.html(f"""
           lon: lon,
           user_type: userType,
           message: message
-        }});
-        window.location.href = `?${{params.toString()}}`;
-      }}
-
-      function showEditForm(row_id, user_type, message) {{
-        message = message.replace(/&quot;/g, '"');
-        const formHTML = `
-          <div class='form-popup'>
-            <label>User type:</label>
-            <select id='editUserType'>
-              <option value='pedestrian' ${{user_type=='pedestrian'?'selected':''}}>Pedestrian</option>
-              <option value='vehicle_passenger' ${{user_type=='vehicle_passenger'?'selected':''}}>Vehicle Passenger</option>
-              <option value='traveler' ${{user_type=='traveler'?'selected':''}}>Traveler</option>
-            </select>
-            <label>Memory:</label>
-            <textarea id='editMemoryText' rows='3'>${{message}}</textarea>
-            <div style='display: flex; justify-content: space-between;'>
-              <button onclick='submitEdit(${{row_id}})'>Update</button>
-              <button onclick='infowindow.close()'>Cancel</button>
-            </div>
-          </div>`;
-        infowindow.setContent(formHTML);
-        infowindow.open(map);
-      }}
-
-      function submitEdit(row_id) {{
-        const userType = document.getElementById('editUserType').value;
-        const message = document.getElementById('editMemoryText').value;
-        const params = new URLSearchParams({{
-          update_row: row_id,
-          edit_user_type: userType,
-          edit_message: message
         }});
         window.location.href = `?${{params.toString()}}`;
       }}
