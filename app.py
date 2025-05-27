@@ -24,7 +24,7 @@ memory_json = json.dumps(df.to_dict(orient="records"))
 
 # Receive data from JS via query params
 query = st.query_params
-# -- Only run once per query, then clean URL
+
 if "lat" in query:
     try:
         lat = float(query["lat"])
@@ -33,24 +33,23 @@ if "lat" in query:
         message = query["message"]
         sheet.append_row([lat, lon, user_type, message])
         st.success("✅ Memory saved!")
-        # -- remove params after save!
-        st.experimental_set_query_params()
-        st.stop()
+        st.query_params.clear()    # پاک کردن پارامترها
+        st.rerun()                 # ری‌ران صفحه
     except Exception as e:
         st.error(f"❌ Error: {e}")
-        st.experimental_set_query_params()
-        st.stop()
+        st.query_params.clear()
+        st.rerun()
 
 if "delete_row" in query:
     try:
         sheet.delete_rows(int(query["delete_row"]))
         st.success("🗑 Row deleted.")
-        st.experimental_set_query_params()
-        st.stop()
+        st.query_params.clear()
+        st.rerun()
     except Exception as e:
         st.error(f"❌ Error deleting: {e}")
-        st.experimental_set_query_params()
-        st.stop()
+        st.query_params.clear()
+        st.rerun()
 
 # Inject map and JS
 components.html(f"""
