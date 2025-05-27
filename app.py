@@ -19,6 +19,9 @@ st.title("📍 Valiasr Street Memories")
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 df.columns = [col.strip() for col in df.columns]  # Clean headers
+
+# Add row_id for delete (2-based, because gspread header is row 1)
+df["row_id"] = df.index + 2
 memory_json = json.dumps(df.to_dict(orient="records"))
 
 # Inject map and JS
@@ -62,7 +65,9 @@ components.html(f"""
           }});
 
           const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}`
+            content: `<b>User:</b> ${{mem.user_type}}<br>
+                      <b>Memory:</b> ${{mem.message}}<br>
+                      <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>`
           }});
 
           marker.addListener('click', () => popup.open(map, marker));
@@ -82,7 +87,7 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${"{"}lat{"}"}, ${"{"}lon{"}"})'>Save</button>
+                <button onclick='submitMemory(${{"{{"}}lat{{"}}"}}, ${{"{{"}}lon{{"}}"}})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
@@ -125,5 +130,14 @@ if "lat" in query:
         message = query["message"]
         sheet.append_row([lat, lon, user_type, message])
         st.success("✅ Memory saved!")
+        st.experimental_rerun()
     except Exception as e:
         st.error(f"❌ Error: {e}")
+
+if "delete_row" in query:
+    try:
+        sheet.delete_row(int(query["delete_row"]))
+        st.success("🗑 Row deleted.")
+        st.experimental_rerun()
+    except Exception as e:
+        st.error(f"❌ Error deleting: {e}")
