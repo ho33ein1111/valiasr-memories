@@ -5,24 +5,34 @@ import gspread
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Google Sheets setup
+# --------- Google Sheets setup ---------
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GSPREAD_SA_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open(st.secrets["SHEET_NAME"]).worksheet("valiasr_memories")
 
-# Load data
+# --------- Load data & add safe JS fields ---------
 st.set_page_config(layout="wide")
 st.title("📍 Valiasr Street Memories")
+
+def escape_js_string(s):
+    if not isinstance(s, str): return ""
+    s = s.replace("\\", "\\\\")   # backslash
+    s = s.replace("'", "\\'")
+    s = s.replace('"', '&quot;')
+    s = s.replace("\n", " ").replace("\r", " ")
+    return s
 
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 df.columns = [col.strip() for col in df.columns]
-df["row_id"] = df.index + 2
+df["row_id"] = df.index + 2  # 2-based for gspread
+df["js_user_type"] = df["user_type"].apply(escape_js_string)
+df["js_message"]   = df["message"].apply(escape_js_string)
 memory_json = json.dumps(df.to_dict(orient="records"))
 
-# Handle query params (add/edit/delete)
+# --------- Handle query params for save, delete, update ---------
 query = st.query_params
 
 if "update_row" in query:
@@ -37,6 +47,8 @@ if "update_row" in query:
         st.rerun()
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
+        st.query_params.clear()
+        st.rerun()
 
 if "lat" in query:
     try:
@@ -64,7 +76,7 @@ if "delete_row" in query:
         st.query_params.clear()
         st.rerun()
 
-# HTML/JS for the Google Map
+# --------- Inject Google Map & JS ---------
 components.html(f"""
 <!DOCTYPE html>
 <html>
@@ -89,6 +101,11 @@ components.html(f"""
     <script>
       let map;
       let infowindow = null;
+
+      function closeAllInfoWindows() {{
+        if (infowindow) infowindow.close();
+      }}
+
       function initMap() {{
         map = new google.maps.Map(document.getElementById("map"), {{
           center: {{ lat: 35.7448, lng: 51.3880 }},
@@ -107,23 +124,22 @@ components.html(f"""
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
 
-          const safeUserType = String(mem.user_type || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-          const safeMessage = String(mem.message || '').replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/(\r\n|\n|\r)/gm, " ");
-
+          // MAIN POPUP with Edit & Delete
           const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${safeUserType}<br><b>Memory:</b> ${safeMessage}<br>
-              <button onclick='window.location.href="?delete_row={mem["row_id"]}"'>🗑 Delete</button>
-              <button onclick="window.showEditForm({mem["row_id"]}, '{safeUserType}', '{safeMessage}')">✏️ Edit</button>`
+            content: `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
+              <button onclick='window.location.href="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>
+              <button onclick="window.showEditForm(${{mem.row_id}}, '${{mem.js_user_type}}', '${{mem.js_message}}')">✏️ Edit</button>`
           }});
 
           marker.addListener('click', () => {{
-            infowindow.close();
+            closeAllInfoWindows();
             popup.open(map, marker);
           }});
         }});
 
+        // Click for new memory
         map.addListener("click", function(e) {{
-          infowindow.close();
+          closeAllInfoWindows();
           const lat = e.latLng.lat().toFixed(6);
           const lon = e.latLng.lng().toFixed(6);
           const formHTML = `
@@ -137,7 +153,7 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${lat}, ${lon})'>Save</button>
+                <button onclick='submitMemory(${{lat}}, ${{lon}})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
@@ -145,6 +161,29 @@ components.html(f"""
           infowindow.setPosition(e.latLng);
           infowindow.open(map);
         }});
+
+        // Attach showEditForm to window for global access
+        window.showEditForm = function(row_id, user_type, message) {{
+          closeAllInfoWindows();
+          message = message.replace(/&quot;/g, '"');
+          const formHTML = `
+            <div class='form-popup'>
+              <label>User type:</label>
+              <select id='editUserType'>
+                <option value='pedestrian' ${{user_type=='pedestrian'?'selected':''}}>Pedestrian</option>
+                <option value='vehicle_passenger' ${{user_type=='vehicle_passenger'?'selected':''}}>Vehicle Passenger</option>
+                <option value='traveler' ${{user_type=='traveler'?'selected':''}}>Traveler</option>
+              </select>
+              <label>Memory:</label>
+              <textarea id='editMemoryText' rows='3'>${{message}}</textarea>
+              <div style='display: flex; justify-content: space-between;'>
+                <button onclick='submitEdit(${{row_id}})'>Update</button>
+                <button onclick='infowindow.close()'>Cancel</button>
+              </div>
+            </div>`;
+          infowindow.setContent(formHTML);
+          infowindow.open(map);
+        }};
       }}
 
       function submitMemory(lat, lon) {{
@@ -156,57 +195,24 @@ components.html(f"""
           user_type: userType,
           message: message
         }});
-        window.location.href = `?${params.toString()}`;
+        window.location.href = `?${{params.toString()}}`;
       }}
-
-      window.showEditForm = function(row_id, user_type, message) {{
-        infowindow.close();
-        message = message.replace(/&quot;/g, '"');
-        const formHTML = `
-          <div class='form-popup'>
-            <label>User type:</label>
-            <select id='editUserType'>
-              <option value='pedestrian' ${user_type=='pedestrian'?'selected':''}>Pedestrian</option>
-              <option value='vehicle_passenger' ${user_type=='vehicle_passenger'?'selected':''}>Vehicle Passenger</option>
-              <option value='traveler' ${user_type=='traveler'?'selected':''}>Traveler</option>
-            </select>
-            <label>Memory:</label>
-            <textarea id='editMemoryText' rows='3'>${message}</textarea>
-            <div style='display: flex; justify-content: space-between;'>
-              <button onclick='window.submitEdit(${row_id})'>Update</button>
-              <button onclick='infowindow.close()'>Cancel</button>
-            </div>
-          </div>`;
-        infowindow.setContent(formHTML);
-        infowindow.open(map);
+      function submitEdit(row_id) {{
+        const userType = document.getElementById('editUserType').value;
+        const message = document.getElementById('editMemoryText').value;
+        const params = new URLSearchParams({{
+          update_row: row_id,
+          edit_user_type: userType,
+          edit_message: message
+        }});
+        window.location.href = `?${{params.toString()}}`;
       }}
-
-window.showEditForm = function(row_id, user_type, message) {{
-    infowindow.close();
-    message = message.replace(/&quot;/g, '"');
-    const formHTML = `
-      <div class='form-popup'>
-        <label>User type:</label>
-        <select id='editUserType'>
-          <option value='pedestrian' ${user_type === 'pedestrian' ? 'selected' : ''}>Pedestrian</option>
-          <option value='vehicle_passenger' ${user_type === 'vehicle_passenger' ? 'selected' : ''}>Vehicle Passenger</option>
-          <option value='traveler' ${user_type === 'traveler' ? 'selected' : ''}>Traveler</option>
-        </select>
-        <label>Memory:</label>
-        <textarea id='editMemoryText' rows='3'>${message}</textarea>
-        <div style='display: flex; justify-content: space-between;'>
-          <button onclick='window.submitEdit(${row_id})'>Update</button>
-          <button onclick='infowindow.close()'>Cancel</button>
-        </div>
-      </div>`;
-    infowindow.setContent(formHTML);
-    infowindow.open(map);
-})
-
 
       window.onload = initMap;
     </script>
   </head>
-  <body><div id="map"></div></body>
+  <body>
+    <div id="map"></div>
+  </body>
 </html>
 """, height=620)
