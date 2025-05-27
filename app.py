@@ -29,12 +29,13 @@ if "update_row" in query:
         row_id = int(query["update_row"])
         new_user_type = query["edit_user_type"]
         new_message = query["edit_message"]
-        sheet.update(f"C{row_id}", [[new_user_type]])
-        sheet.update(f"D{row_id}", [[new_message]])
+        sheet.update(f"C{row_id}:C{row_id}", [[new_user_type]])
+        sheet.update(f"D{row_id}:D{row_id}", [[new_message]])
         st.success("✏️ Memory updated!")
         st.rerun()
     except Exception as e:
         st.error(f"❌ Error updating: {e}")
+
 
 if "lat" in query:
     try:
