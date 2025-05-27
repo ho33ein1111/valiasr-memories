@@ -101,10 +101,10 @@ components.html(f"""
           }});
 
           const popup = new google.maps.InfoWindow({{
-            content: `<b>User:</b> ${{mem.user_type}}<br>
-                      <b>Memory:</b> ${{mem.message}}<br>
-                      <button onclick='window.location.href=\"?delete_row=${{mem.row_id}}\"'>🗑 Delete</button>
-                      <button onclick='showEditForm(${{mem.row_id}}, \"${{mem.user_type}}\", \"${{mem.message.replace(/\"/g, '&quot;')}}\")'>✏️ Edit</button>`
+            content: `<b>User:</b> ${{{{mem.user_type}}}}<br>
+                      <b>Memory:</b> ${{{{mem.message}}}}<br>
+                      <button onclick='window.location.href=\"?delete_row=${{{{mem.row_id}}}}\"'>🗑 Delete</button>
+                      <button onclick='showEditForm(${{{{mem.row_id}}}}, \"${{{{mem.user_type}}}}\", \"${{{{mem.message.replace(/\"/g, '&quot;')}}}}\")'>✏️ Edit</button>`
           }});
 
           marker.addListener('click', () => popup.open(map, marker));
@@ -124,7 +124,7 @@ components.html(f"""
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
               <div style='display: flex; justify-content: space-between;'>
-                <button onclick='submitMemory(${{"{{"}}lat{{"}}"}}, ${{"{{"}}lon{{"}}"}})'>Save</button>
+                <button onclick='submitMemory(${{\"{{\"}}lat{{\"}}\"}}, ${{\"{{\"}}lon{{\"}}\"}})'>Save</button>
                 <button onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
@@ -155,14 +155,14 @@ components.html(f"""
           <div class='form-popup'>
             <label>User type:</label>
             <select id='editUserType'>
-              <option value='pedestrian' ${'pedestrian'==user_type?'selected':''}>Pedestrian</option>
-              <option value='vehicle_passenger' ${'vehicle_passenger'==user_type?'selected':''}>Vehicle Passenger</option>
-              <option value='traveler' ${'traveler'==user_type?'selected':''}>Traveler</option>
+              <option value='pedestrian' ${{{{user_type=='pedestrian'?'selected':''}}}}>Pedestrian</option>
+              <option value='vehicle_passenger' ${{{{user_type=='vehicle_passenger'?'selected':''}}}}>Vehicle Passenger</option>
+              <option value='traveler' ${{{{user_type=='traveler'?'selected':''}}}}>Traveler</option>
             </select>
             <label>Memory:</label>
-            <textarea id='editMemoryText' rows='3'>${message}</textarea>
+            <textarea id='editMemoryText' rows='3'>${{{{message}}}}</textarea>
             <div style='display: flex; justify-content: space-between;'>
-              <button onclick='submitEdit(${{row_id}})'>Update</button>
+              <button onclick='submitEdit(${{{{row_id}}}})'>Update</button>
               <button onclick='infowindow.close()'>Cancel</button>
             </div>
           </div>`;
