@@ -87,35 +87,98 @@ components.html(f"""
     <meta charset="utf-8">
     <title>Map</title>
     <style>
-      #map {{ height: 600px; width: 100%; }}
+      body {{ background: #f4f4f4; }}
+      #map {{
+        height: 620px; width: 100%; margin: 0; border-radius: 16px; box-shadow: 0 8px 32px rgba(80,80,120,.10);
+      }}
       .form-popup {{
-        background: white;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 6px 18px rgba(60,60,80,.09);
+        padding: 22px 16px 10px 16px;
+        width: 270px;
+        font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+        font-size: 1.04em;
+        letter-spacing: 0.01em;
+      }}
+      .form-popup label {{
+        font-weight: 500; color: #666; margin-top: 8px;
+      }}
+      .form-popup select, .form-popup textarea {{
+        width: 100%;
+        margin-top: 5px;
+        border-radius: 8px;
+        border: 1px solid #d8d8d8;
+        padding: 7px 10px;
+        font-size: 1em;
+        margin-bottom: 7px;
+        background: #fcfcfc;
+        transition: border 0.15s;
+      }}
+      .form-popup textarea:focus, .form-popup select:focus {{
+        outline: none; border: 1.3px solid #8ab4f8;
+      }}
+      .form-popup button {{
+        margin-top: 12px;
+        width: 47%;
+        padding: 7px 0;
+        font-size: 1em;
+        border: none;
         border-radius: 10px;
-        padding: 10px;
-        width: 250px;
-        font-family: Arial;
+        cursor: pointer;
+        background: #f09819;
+        color: white;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(250,175,70,0.11);
+        transition: background .2s;
       }}
-      .form-popup input, .form-popup select, .form-popup textarea {{
-        width: 100%; margin-top: 5px;
+      .form-popup button:hover {{
+        background: #ff512f;
       }}
-      .form-popup button {{ margin-top: 10px; width: 48%; }}
+      .popup-actions {{
+        display: flex; justify-content: space-between; gap: 8px;
+      }}
+      .icon-btn {{
+        background: #efefef !important;
+        color: #b13f3f !important;
+        font-size: 1.14em !important;
+        border: 1.5px solid #ffebee !important;
+        width: 42%;
+        box-shadow: none !important;
+      }}
+      .icon-btn:hover {{
+        background: #ffe5e5 !important;
+        color: #ff512f !important;
+      }}
+      .edit-btn {{
+        background: #51bb7b !important;
+        color: #fff !important;
+        border: none !important;
+        width: 51%;
+      }}
+      .edit-btn:hover {{
+        background: #38b183 !important;
+      }}
     </style>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDi9TbBUZ33JQS3wU4DDCi4t2RvqbXAs_4"></script>
     <script>
       let map;
       let infowindow = null;
-
       function closeAllInfoWindows() {{
         if (infowindow) infowindow.close();
       }}
-
       function initMap() {{
         map = new google.maps.Map(document.getElementById("map"), {{
           center: {{ lat: 35.7448, lng: 51.3880 }},
-          zoom: 13
+          zoom: 13,
+          styles: [
+            {{
+              featureType: "poi.business", elementType: "labels.icon", stylers: [{{ visibility: "off" }}]
+            }},
+            {{ featureType: "transit", elementType: "labels.icon", stylers: [{{ visibility: "off" }}] }}
+          ]
         }});
         infowindow = new google.maps.InfoWindow();
-
         const memories = {memory_json};
         memories.forEach(mem => {{
           const marker = new google.maps.Marker({{
@@ -125,21 +188,24 @@ components.html(f"""
                   mem.user_type === "vehicle_passenger" ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' :
                   'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
           }});
-          // MAIN POPUP with Edit & Delete
           marker.addListener('click', () => {{
             closeAllInfoWindows();
             const safeUserType = String(mem.js_user_type);
             const safeMessage = String(mem.js_message);
             infowindow.setContent(
-              `<b>User:</b> ${{mem.user_type}}<br><b>Memory:</b> ${{mem.message}}<br>
-              <button onclick='window.location.href="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>
-              <button onclick="window.showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>`
+              `<div class='form-popup'>
+                <b style='font-size:1.08em;color:#2d3446'>User:</b> <span style='color:#8ab4f8'>${{mem.user_type}}</span><br>
+                <b style='font-size:1.08em;color:#2d3446'>Memory:</b> <span style='color:#444'>${{mem.message}}</span>
+                <div class='popup-actions' style='margin-top:9px;'>
+                  <button class="icon-btn" onclick='window.location.href="?delete_row=${{mem.row_id}}"'>🗑 Delete</button>
+                  <button class="edit-btn" onclick="window.showEditForm(${{mem.row_id}}, '${{safeUserType}}', '${{safeMessage}}')">✏️ Edit</button>
+                </div>
+              </div>`
             );
             infowindow.open(map, marker);
           }});
         }});
-
-        // New memory
+        // New memory form
         map.addListener("click", function(e) {{
           closeAllInfoWindows();
           const lat = e.latLng.lat().toFixed(6);
@@ -154,17 +220,16 @@ components.html(f"""
               </select>
               <label>Memory:</label>
               <textarea id='memoryText' rows='3'></textarea>
-              <div style='display: flex; justify-content: space-between;'>
+              <div class='popup-actions'>
                 <button onclick='submitMemory(${{lat}}, ${{lon}})'>Save</button>
-                <button onclick='infowindow.close()'>Cancel</button>
+                <button style="background:#ececec;color:#777" onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
           infowindow.setContent(formHTML);
           infowindow.setPosition(e.latLng);
           infowindow.open(map);
         }});
-
-        // Attach showEditForm to window for global access
+        // Edit popup (overrides preview popup)
         window.showEditForm = function(row_id, user_type, message) {{
           closeAllInfoWindows();
           message = message.replace(/&quot;/g, '"');
@@ -178,16 +243,15 @@ components.html(f"""
               </select>
               <label>Memory:</label>
               <textarea id='editMemoryText' rows='3'>${{message}}</textarea>
-              <div style='display: flex; justify-content: space-between;'>
-                <button onclick='window.submitEdit(${{row_id}})'>Update</button>
-                <button onclick='infowindow.close()'>Cancel</button>
+              <div class='popup-actions'>
+                <button class="edit-btn" onclick='window.submitEdit(${{row_id}})'>Update</button>
+                <button class="icon-btn" onclick='infowindow.close()'>Cancel</button>
               </div>
             </div>`;
           infowindow.setContent(formHTML);
           infowindow.open(map);
         }};
       }}
-
       function submitMemory(lat, lon) {{
         const userType = document.getElementById('userType').value;
         const message = document.getElementById('memoryText').value;
@@ -199,7 +263,6 @@ components.html(f"""
         }});
         window.location.href = `?${{params.toString()}}`;
       }}
-
       window.submitEdit = function(row_id) {{
         const userType = document.getElementById('editUserType').value;
         const message = document.getElementById('editMemoryText').value;
@@ -210,7 +273,6 @@ components.html(f"""
         }});
         window.location.href = `?${{params.toString()}}`;
       }}
-
       window.onload = initMap;
     </script>
   </head>
@@ -218,4 +280,4 @@ components.html(f"""
     <div id="map"></div>
   </body>
 </html>
-""", height=620)
+""", height=640)
